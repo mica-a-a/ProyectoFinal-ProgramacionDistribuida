@@ -1,0 +1,37 @@
+# ---- Dependencias (se reconstruyen con npm install / npm ci) ----
+node_modules/
+
+# ---- Configuración local y datos sensibles ----
+.env
+.env.*
+!.env.example
+
+# ---- Certificados y claves privadas (generar localmente, ver README) ----
+certs/
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+*.cert
+
+# ---- Logs ----
+*.log
+logs/
+npm-debug.log*
+
+# ---- Archivos temporales / del sistema / editores ----
+.DS_Store
+Thumbs.db
+*.tmp
+.vscode/
+.idea/
+
+# ---- Salidas de build y pruebas ----
+dist/
+coverage/
+
+# ---- Datos locales de bases (si se usan carpetas de datos locales) ----
+data/db/
+*.rdb
+dump.rdb

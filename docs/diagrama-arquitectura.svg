@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151"/>
+    </marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1d4ed8"/>
+    </marker>
+  </defs>
+  <rect width="1000" height="600" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-size="18" font-weight="bold" fill="#111827">Arquitectura propuesta: Eventos y Entradas</text>
+
+  <!-- Cliente -->
+  <rect x="380" y="50" width="240" height="46" rx="8" fill="#f3f4f6" stroke="#6b7280" stroke-width="1.5"/>
+  <text x="500" y="70" text-anchor="middle" font-size="14" font-weight="bold" fill="#111827">Cliente</text>
+  <text x="500" y="86" text-anchor="middle" font-size="11" fill="#374151">(app / control de ingreso)</text>
+
+  <!-- Flechas cliente -> servicios -->
+  <path d="M440,96 L130,200" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
+  <path d="M500,96 L500,200" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
+  <path d="M560,96 L870,200" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
+  <text x="250" y="140" font-size="11" fill="#374151" transform="rotate(-18 250 140)">HTTPS /usuarios</text>
+  <text x="508" y="150" font-size="11" fill="#374151">HTTPS /ordenes, /entradas</text>
+  <text x="775" y="152" font-size="11" fill="#374151">HTTPS /eventos</text>
+
+  <!-- usuarios-service -->
+  <rect x="20" y="200" width="220" height="150" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+  <text x="130" y="224" text-anchor="middle" font-size="14" font-weight="bold" fill="#065f46">usuarios-service</text>
+  <text x="130" y="241" text-anchor="middle" font-size="10" fill="#065f46">:3001</text>
+  <text x="130" y="265" text-anchor="middle" font-size="11" fill="#111827">Identidad de personas</text>
+  <text x="130" y="288" text-anchor="middle" font-size="10" fill="#374151">CRUD, baja lógica</text>
+  <text x="130" y="303" text-anchor="middle" font-size="10" fill="#374151">DNI y email únicos</text>
+  <text x="130" y="318" text-anchor="middle" font-size="10" fill="#374151">Informa existencia y estado</text>
+  <text x="130" y="338" text-anchor="middle" font-size="10" fill="#6b7280">Sin dependencias</text>
+
+  <!-- entradas-service -->
+  <rect x="390" y="200" width="220" height="150" rx="10" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2"/>
+  <text x="500" y="224" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e3a8a">entradas-service</text>
+  <text x="500" y="241" text-anchor="middle" font-size="10" fill="#1e3a8a">:3003</text>
+  <text x="500" y="265" text-anchor="middle" font-size="11" fill="#111827">Compras y tickets</text>
+  <text x="500" y="288" text-anchor="middle" font-size="10" fill="#374151">Orden, cancelación, validación</text>
+  <text x="500" y="303" text-anchor="middle" font-size="10" fill="#374151">Máx. por usuario, ticket único</text>
+  <text x="500" y="318" text-anchor="middle" font-size="10" fill="#374151">Orquesta la compra</text>
+  <text x="500" y="338" text-anchor="middle" font-size="10" fill="#6b7280">Depende de Usuarios y Eventos</text>
+
+  <!-- eventos-service -->
+  <rect x="760" y="200" width="220" height="150" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+  <text x="870" y="224" text-anchor="middle" font-size="14" font-weight="bold" fill="#92400e">eventos-service</text>
+  <text x="870" y="241" text-anchor="middle" font-size="10" fill="#92400e">:3002</text>
+  <text x="870" y="265" text-anchor="middle" font-size="11" fill="#111827">Eventos y control de aforo</text>
+  <text x="870" y="288" text-anchor="middle" font-size="10" fill="#374151">Estados, fechas, cancelación</text>
+  <text x="870" y="303" text-anchor="middle" font-size="10" fill="#374151">Reservar / liberar aforo</text>
+  <text x="870" y="318" text-anchor="middle" font-size="10" fill="#374151">Lock por evento (TTL)</text>
+  <text x="870" y="338" text-anchor="middle" font-size="10" fill="#6b7280">Sin dependencias</text>
+
+  <!-- Comunicaciones internas -->
+  <path d="M390,250 L240,250" stroke="#1d4ed8" stroke-width="2" fill="none" marker-end="url(#b)"/>
+  <text x="315" y="242" text-anchor="middle" font-size="10" fill="#1d4ed8">GET /usuarios/:id</text>
+  <text x="315" y="266" text-anchor="middle" font-size="9" fill="#1d4ed8">(1) HTTP</text>
+
+  <path d="M610,240 L760,240" stroke="#1d4ed8" stroke-width="2" fill="none" marker-end="url(#b)"/>
+  <text x="685" y="232" text-anchor="middle" font-size="10" fill="#1d4ed8">GET /eventos/:id</text>
+  <text x="685" y="254" text-anchor="middle" font-size="9" fill="#1d4ed8">(2) HTTP</text>
+  <path d="M610,300 L760,300" stroke="#1d4ed8" stroke-width="2" fill="none" marker-end="url(#b)"/>
+  <text x="685" y="292" text-anchor="middle" font-size="10" fill="#1d4ed8">POST reservar/liberar</text>
+  <text x="685" y="314" text-anchor="middle" font-size="9" fill="#1d4ed8">(3) (4) HTTP (internos)</text>
+
+  <!-- Bases de datos -->
+  <path d="M130,350 L130,410" stroke="#374151" stroke-width="1.5" fill="none"/>
+  <path d="M500,350 L500,410" stroke="#374151" stroke-width="1.5" fill="none"/>
+  <path d="M830,350 L830,410" stroke="#374151" stroke-width="1.5" fill="none"/>
+  <path d="M940,350 L940,410" stroke="#374151" stroke-width="1.5" fill="none"/>
+
+  <!-- DB usuarios -->
+  <path d="M70,420 v50 a60,12 0 0 0 120,0 v-50" fill="#d1fae5" stroke="#059669" stroke-width="1.5"/>
+  <ellipse cx="130" cy="420" rx="60" ry="12" fill="#a7f3d0" stroke="#059669" stroke-width="1.5"/>
+  <text x="130" y="448" text-anchor="middle" font-size="11" font-weight="bold" fill="#065f46">usuarios_db</text>
+  <text x="130" y="462" text-anchor="middle" font-size="9" fill="#065f46">MongoDB</text>
+
+  <!-- DB entradas -->
+  <path d="M440,420 v50 a60,12 0 0 0 120,0 v-50" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+  <ellipse cx="500" cy="420" rx="60" ry="12" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1.5"/>
+  <text x="500" y="448" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e3a8a">entradas_db</text>
+  <text x="500" y="462" text-anchor="middle" font-size="9" fill="#1e3a8a">ordenes, tickets</text>
+
+  <!-- DB eventos -->
+  <path d="M780,420 v50 a50,12 0 0 0 100,0 v-50" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <ellipse cx="830" cy="420" rx="50" ry="12" fill="#fde68a" stroke="#d97706" stroke-width="1.5"/>
+  <text x="830" y="448" text-anchor="middle" font-size="11" font-weight="bold" fill="#92400e">eventos_db</text>
+  <text x="830" y="462" text-anchor="middle" font-size="9" fill="#92400e">eventos, movimientos</text>
+
+  <!-- Redis -->
+  <rect x="900" y="410" width="80" height="56" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="940" y="434" text-anchor="middle" font-size="11" font-weight="bold" fill="#991b1b">Redis</text>
+  <text x="940" y="450" text-anchor="middle" font-size="9" fill="#991b1b">lock por evento</text>
+
+  <!-- Leyenda -->
+  <rect x="20" y="500" width="960" height="84" rx="8" fill="#f9fafb" stroke="#d1d5db"/>
+  <text x="34" y="520" font-size="11" font-weight="bold" fill="#111827">Referencias</text>
+  <text x="34" y="538" font-size="10" fill="#374151">(1) Entradas → Usuarios: GET /usuarios/:id (¿existe y está activo?)    (2) Entradas → Eventos: GET /eventos/:id (precio, fecha, vigente)</text>
+  <text x="34" y="554" font-size="10" fill="#374151">(3) Entradas → Eventos: POST /eventos/:id/reservar-aforo { cantidad, referencia }    (4) POST /eventos/:id/liberar-aforo { cantidad, referencia }</text>
+  <text x="34" y="570" font-size="10" fill="#374151">Cada servicio posee su propia base: ninguno accede a la base de otro. Solo Entradas invoca a otros servicios; no hay comunicaciones circulares.</text>
+</svg>

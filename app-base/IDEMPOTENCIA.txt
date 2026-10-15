@@ -1,7 +1,0 @@
-Concepto de Idempotencia aplicado a la API:
-
-La idempotencia es la propiedad mediante la cual una operación puede repetirse múltiples veces obteniendo siempre el mismo resultado final sin 
-alterar el estado del sistema más allá de su primera ejecución. En nuestra API REST desarrollada, los métodos GET, PUT y DELETE son idempotentes. 
-Por ejemplo, el método DELETE /usuarios/2 es idempotente porque si se ejecuta una vez, el usuario con ID 2 es eliminado; si por un fallo de red el 
-cliente reintenta la misma petición dos o tres veces más, el resultado final sigue siendo el mismo (el recurso ya no existe y el servidor 
-responderá consistentemente con un estado de éxito o un 404, sin generar efectos secundarios indeseados).

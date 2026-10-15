@@ -18,6 +18,7 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 ### Identidad de Git de cada integrante
 ![Git config - Le Donne](01-gitConfig-LeDonne.png)
 ![Git config - Bazan](01-gitConfig-Bazan.png)
+![Git config - Molina](01-gitConfig-Molina.png)
 
 
 
@@ -33,7 +34,7 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 
 ### Ramas y commits
 ![Ramas en GitHub](05a-ramas-github.png)
-![Historial de commits](05b-historial-git.png)
+![Historial de commits](05b-historial-github.png)
 
 ### Pull Request integrado
 ![Pull Request integrado](06-pull-request.png)

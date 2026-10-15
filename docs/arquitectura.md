@@ -2,9 +2,9 @@
 
 **Materia:** Programación Distribuida · Licenciatura en Sistemas de Información
 **Trabajo Práctico N° 5:** De API REST a Microservicios
-**Fecha:** `16 de octubre 2026`
-**Grupo:** `2`
-**Integrantes:** `Bazan Franco, Gorri Juan, Le Donne Micaela,Molina Agostina,Nievas Milagros`
+**Fecha:** `COMPLETAR`
+**Grupo:** `COMPLETAR`
+**Integrantes:** Bazan Franco · Gorri Juan · Le Donne Micaela · Molina Agostina · Nievas Milagros
 
 > **Dominio elegido:** Eventos y entradas. Usuarios registrados compran entradas para eventos con aforo limitado, reciben un ticket y lo presentan en el ingreso, donde se valida.
 
@@ -27,18 +27,18 @@
 
 ## 1. Punto de partida y alcance
 
-La aplicación base es la API de **Usuarios** desarrollada en los trabajos anteriores:
+La aplicación base es la API desarrollada en los trabajos anteriores, que está en la carpeta [`app-base/`](../app-base/) (versión del TP4):
 
 | TP | Aporte a la aplicación |
 |----|------------------------|
 | TP1 | API REST con CRUD de usuarios (Node.js + Express), datos en memoria |
 | TP2 | HTTPS con certificado autofirmado; recurso de reservas de cupo con condición de carrera y exclusión mutua mediante lock en Redis/Memurai (TTL 5 s) |
-| TP3 | Persistencia en MongoDB con Mongoose, logging con Winston (rotación y retención), documentación OpenAPI/Swagger |
-| TP4 | Cluster de 3 nodos con Raft educativo: elección de Leader, log replicado, State Machine sobre el CRUD, integración Redis + Raft |
+| TP3 | Persistencia en MongoDB con Mongoose (usuarios y reservas), logging con Winston (rotación y retención), documentación OpenAPI/Swagger |
+| TP4 | Cluster de 3 nodos con Raft educativo: elección de Leader, log replicado, State Machine sobre el CRUD de usuarios, integración Redis + Raft |
 
 **Alcance de este TP:** análisis y diseño. No se implementan los microservicios; se deja documentada y justificada la arquitectura para comenzar la migración del código en los trabajos siguientes.
 
-> **Nota de fuentes:** armamos el inventario a partir del código del TP1 (`app-base/`) y de los informes de los TP2, TP3 y TP4. Los endpoints de Raft los describimos por su función y no por su ruta exacta, porque ese código no está en esta versión base; las rutas exactas se confirman al migrar el servicio que use Raft.
+> **Nota de fuentes:** armamos el inventario leyendo el código de `app-base/`: `src/app.js`, `src/server.js`, `src/routes/`, `src/models/` y `src/raft/`. Los nombres de rutas, campos y códigos de respuesta son los de esa versión.
 
 ---
 
@@ -49,47 +49,48 @@ La aplicación base es la API de **Usuarios** desarrollada en los trabajos anter
 
 | Recurso / entidad | Campos | Origen |
 |-------------------|--------|--------|
-| **Usuario** | `id`, `dni`, `nombreApellido`, `fechaNacimiento`, `email`, `direccion` | TP1, persistido en MongoDB desde TP3 (DNI y email únicos) |
-| **Recurso de reserva (cupo)** | `id`, `nombre`, `disponibles` | TP2, mantenido en memoria del proceso |
-| **Entrada de log Raft** | posición, término, comando | TP4 |
-| **Lock** | clave `lock:reserva:{id}` con TTL | TP2, almacenado en Redis/Memurai |
+| **Usuario** | `_id`, `nombre`, `apellido`, `email` (único), `edad`, `createdAt`, `updatedAt` | TP1, persistido en MongoDB desde TP3. Cada nodo del cluster tiene su propia base |
+| **Reserva (cupo)** | `_id`, `nombre`, `disponibles` (entero ≥ 0), `createdAt`, `updatedAt` | TP2, persistido en MongoDB |
+| **Estado Raft** | término actual, voto, log, `commitIndex`, `lastApplied` | TP4, persistido en MongoDB por cada nodo |
+| **Lock** | clave `lock:reserva:{id}` con TTL de 5000 ms | TP2, almacenado en Redis |
 
 ### 2.2 Inventario de funcionalidades y endpoints
 
 | Funcionalidad / endpoint | Responsabilidad actual | Datos utilizados | Dependencias |
 |--------------------------|------------------------|------------------|--------------|
-| `GET /usuarios` | Listar todos los usuarios | Colección `usuarios` | MongoDB (Mongoose) |
-| `GET /usuarios/:id` | Consultar un usuario; 400 si el id es inválido, 404 si no existe | Usuario | MongoDB, validación de id |
-| `POST /usuarios` | Alta de usuario; valida los 5 campos obligatorios (400) y unicidad de DNI/email (409) | Usuario | MongoDB, esquema Mongoose, Raft (en TP4 la escritura pasa por el log) |
-| `PUT /usuarios/:id` | Modificación parcial de un usuario; rechaza cuerpo vacío (400) | Usuario | MongoDB, Raft |
-| `DELETE /usuarios/:id` | Baja de un usuario | Usuario | MongoDB, Raft |
-| `GET /reservas` | Consultar el estado del recurso de reserva | Recurso de reserva (`disponibles`) | Memoria del proceso |
-| `POST /reservas/reservar` | Descontar un cupo: toma el lock, verifica `disponibles > 0`, descuenta, libera el lock; 423 si el recurso está bloqueado, 409 si no hay cupos | Recurso de reserva | Redis/Memurai (lock con `NX` y TTL), Raft (TP4) |
+| `GET /users` | Listar todos los usuarios | Colección de usuarios | MongoDB (Mongoose) |
+| `GET /users/:id` | Consultar un usuario; 400 si el id es inválido, 404 si no existe | Usuario | MongoDB |
+| `POST /users` | Alta de usuario. Solo la atiende el Leader (si no, 409 con `leaderId`); 400 por validación, 409 por email duplicado, 503 si no hay quórum | Usuario | Raft (`appendCommand`), State Machine, MongoDB |
+| `PUT /users/:id` | Modificación de un usuario, con las mismas reglas de Leader y quórum | Usuario | Raft, State Machine, MongoDB |
+| `DELETE /users/:id` | Baja física de un usuario, con las mismas reglas de Leader y quórum | Usuario | Raft, State Machine, MongoDB |
+| `GET /reservas` | Consultar los recursos de reserva y sus `disponibles` | Reserva | MongoDB |
+| `POST /reservas/:id/reservar` | Descontar un cupo: toma el lock, verifica `disponibles > 0`, descuenta, libera el lock. 404 si el recurso no existe, 409 si no hay cupos, 423 si está bloqueado. Incluye una espera de 2 s dentro de la sección crítica para demostrar la exclusión mutua | Reserva | Redis (lock con `NX` y TTL), MongoDB |
+| `GET /raft/status`, `GET /raft/log` | Diagnóstico del nodo (identidad, rol, término, Leader conocido, commit index) y consulta del log | Estado Raft | Módulo Raft |
+| `POST /raft/request-vote`, `POST /raft/append-entries` | RPC internos: elección de Leader, heartbeats y replicación del log | Término, voto, log | HTTP entre nodos |
+| `POST /raft/command` | Incorporar una operación al log de Raft (solo Leader; 409 si no lo es, 503 sin quórum) | Operación | Raft, State Machine |
 | `GET /api-docs`, `GET /api-docs.json` | Documentación OpenAPI/Swagger de la API | Especificación OpenAPI | swagger-ui-express |
-| Endpoints de diagnóstico del nodo y del log (TP4) | Mostrar identidad, rol, término, Leader conocido y log | Estado Raft | Módulo Raft |
-| RPC internos Raft: solicitud de voto y AppendEntries (TP4) | Elección de Leader, heartbeats, replicación | Término, voto, log | HTTP entre nodos |
-| Logging (transversal) | Registro INFO/WARN/ERROR con rotación y retención | Archivos `logs/` | Winston |
-| HTTPS (transversal) | Cifrado de la API externa | Certificado y clave de desarrollo | Variables de entorno |
+| `GET /` | Mensaje de bienvenida | Ninguno | Ninguna |
+| Logging (transversal) | Registro INFO/WARN/ERROR con rotación y retención de 7 días | Archivos `logs/` | Winston |
+| HTTPS (transversal) | Cifrado de la API externa (puertos 3443 a 3445) | Certificado y clave de desarrollo | Variables de entorno y archivos en `certs/` |
 
 ### 2.3 Reglas de negocio y validaciones existentes
 
-- Usuario: `dni`, `nombreApellido`, `fechaNacimiento`, `email` y `direccion` son obligatorios.
-- Usuario: `dni` y `email` deben ser únicos (409 ante duplicado).
+- Usuario: `nombre` y `apellido` (mínimo 2 caracteres), `email` con formato válido y `edad` entera mayor a 0 son obligatorios (400 ante error de validación).
+- Usuario: el `email` debe ser único (409 ante duplicado). No existe unicidad de DNI porque la aplicación base no tiene ese campo.
 - Usuario: el `id` debe tener formato válido (400) y existir (404).
+- Usuario: toda escritura se atiende solo en el Leader y se aplica cuando está confirmada por mayoría (503 si no hay quórum).
 - Reserva: no se descuenta un cupo si `disponibles <= 0` (409).
 - Reserva: un solo proceso a la vez puede modificar un mismo recurso (lock por recurso; 423 si está ocupado).
-- Reserva: el lock tiene TTL para no bloquear indefinidamente ante una falla.
+- Reserva: el lock tiene TTL de 5 s para no bloquear indefinidamente ante una falla, y solo lo libera quien lo tomó (se compara el valor).
 - Raft: una escritura no se aplica hasta estar *committed* por mayoría; una escritura recibida por un follower no se aplica localmente.
 
 ### 2.4 Módulos, persistencia e información compartida
 
 | Aspecto | Situación actual |
 |---------|------------------|
-| Módulos | `index.js` (arranque, HTTPS, conexión a Mongo y Redis, recurso y rutas de reservas, rutas de usuarios), `models/Usuario.js` (esquema), `utils/logger.js` (Winston), `src/routers/` |
-| Persistencia | MongoDB para usuarios; memoria del proceso para el recurso de reserva; Redis solo para locks; persistencia propia del log Raft por nodo |
-| Información compartida | El modelo de Usuario es usado por el CRUD y por la State Machine de Raft; el recurso de reserva y su lock se manejan dentro del mismo handler |
-
-> **Dato a corregir en los datos de ejemplo:** el usuario 4 de `app-base/usuarios.json` tiene `fechaNacimiento: "2006-13-03"` (mes 13, inválido). Es un buen ejemplo de validación que debe pertenecer al servicio de Usuarios.
+| Módulos | `src/server.js` (arranque: HTTPS, API interna de Raft, conexión a Mongo y Redis, temporizador de elecciones), `src/app.js` (monta las rutas de usuarios, reservas, Raft y Swagger), `src/routes/` (`users`, `reservas`, `raft`), `src/models/` (`User`, `Reserva`), `src/raft/` (elección, replicación, estado y State Machine), `src/config/cluster.js`, `src/logger.js` |
+| Persistencia | MongoDB para usuarios, reservas y estado de Raft (una base por nodo: `user-api-node1`, `node2`, `node3`); Redis solo para locks |
+| Información compartida | El modelo `User` lo usan el CRUD y la State Machine de Raft. El handler de usuarios importa el estado y la replicación de Raft. La reserva y su lock se manejan dentro del mismo handler. El mismo `app` de Express atiende la API pública y el puerto interno de Raft |
 
 ---
 
@@ -104,11 +105,11 @@ Las funcionalidades se agrupan por la responsabilidad funcional que cumplen, no 
 |----------|-----------|
 | 1. ¿Qué problema resuelve? | Saber quiénes son las personas que usan el sistema y mantener sus datos personales sin duplicados. |
 | 2. ¿Qué operaciones realiza? | Alta, consulta, modificación y baja de usuarios. |
-| 3. ¿Qué reglas contiene? | Campos obligatorios, unicidad de DNI y email, fecha de nacimiento válida. |
+| 3. ¿Qué reglas contiene? | Campos obligatorios y con formato válido, unicidad de email. |
 | 4. ¿Qué información necesita? | Solo los datos de la persona. |
 | 5. ¿Qué crea o modifica? | Perfil de usuario. |
 | 6. ¿Qué otras funcionalidades necesita conocer? | Ninguna. |
-| 7. ¿Qué cambios suelen ocurrir juntos? | Nuevos datos del perfil y sus validaciones (por ejemplo, estado activo/inactivo). |
+| 7. ¿Qué cambios suelen ocurrir juntos? | Nuevos datos del perfil y sus validaciones (por ejemplo, DNI, fecha de nacimiento o estado activo/inactivo). |
 | 8. ¿Podría evolucionar independiente? | **Sí.** Es la parte más autónoma de la aplicación. |
 
 ### Grupo B: Venta de lugares sobre un recurso con capacidad limitada
@@ -134,7 +135,7 @@ Las funcionalidades se agrupan por la responsabilidad funcional que cumplen, no 
 | 3. ¿Qué reglas contiene? | Quórum por mayoría, un voto por término, commit solo con mayoría. |
 | 4. ¿Qué información necesita? | Término, voto, log, lista de peers. |
 | 5. ¿Qué crea o modifica? | Log replicado y estado confirmado. |
-| 6. ¿Qué otras funcionalidades necesita conocer? | Hoy aplica comandos directamente sobre el modelo de Usuario. |
+| 6. ¿Qué otras funcionalidades necesita conocer? | Hoy su State Machine aplica comandos (`CREATE_USER`, `UPDATE_USER`, `DELETE_USER`) directamente sobre el modelo de Usuario. |
 | 7. ¿Qué cambios suelen ocurrir juntos? | Protocolo y State Machine. |
 | 8. ¿Podría evolucionar independiente? | **Sí, como mecanismo.** No es una responsabilidad de negocio: es una técnica de replicación que se aplica a algún servicio, no un servicio de negocio. |
 
@@ -167,11 +168,11 @@ Las funcionalidades se agrupan por la responsabilidad funcional que cumplen, no 
 
 | Caso | Acoplamiento detectado | Problema generado | Propuesta de desacople |
 |------|------------------------|-------------------|------------------------|
-| **1** | **Aplicación monolítica en `index.js`:** el mismo archivo arranca el servidor HTTPS, conecta a MongoDB y a Redis, declara el recurso de reservas y monta las rutas de usuarios y de reservas. Existe porque se fue agregando funcionalidad sobre el proyecto del TP1. | Un cambio en reservas obliga a redesplegar y reprobar también usuarios; una falla de Redis o del recurso afecta el arranque de toda la aplicación; no se puede escalar una parte sin la otra. | Un proceso por responsabilidad (Usuarios, Eventos, Entradas), cada uno con su configuración y su base. |
-| **2** | **Regla de negocio, lock y respuesta HTTP en el mismo handler de `POST /reservas/reservar`:** la decisión "no hay cupos", la coordinación con Redis y el armado de la respuesta están mezcladas. Existe porque la protección contra la condición de carrera se agregó dentro del handler del TP2. | La regla de capacidad no se puede reutilizar ni probar sin HTTP y Redis; cualquier nuevo caso que consuma lugares (cancelar, vender varios) duplica la lógica. | Concentrar la capacidad y el lock en un único servicio (**Eventos**), con operaciones internas `reservar-aforo` y `liberar-aforo`. Quien quiera consumir lugares lo pide por API. |
-| **3** | **State Machine de Raft aplicando comandos directamente sobre el modelo de Usuario (Mongoose):** el protocolo de consenso conoce el esquema del negocio. Existe porque en el TP4 se integró el CRUD existente al log. | Agregar un recurso nuevo exige modificar el módulo de consenso; no se puede cambiar el modelo sin tocar la replicación. | Que el consenso sea un mecanismo genérico (comandos opacos) y que cada servicio aporte su propia State Machine. Raft no se publica como servicio de negocio. |
+| **1** | **Aplicación monolítica en un solo proceso:** `src/server.js` arranca el servidor HTTPS, el servidor interno de Raft, conecta a MongoDB y a Redis, y `src/app.js` monta en la misma aplicación las rutas de usuarios, reservas, Raft y Swagger. Existe porque se fue agregando funcionalidad sobre el proyecto del TP1. | Un cambio en reservas obliga a redesplegar y reprobar también usuarios; una falla de Redis afecta el arranque de toda la aplicación (`server.js` conecta a Redis antes de abrir los puertos); no se puede escalar una parte sin la otra. Además, las rutas internas de Raft quedan publicadas en el mismo `app` que la API pública. | Un proceso por responsabilidad (Usuarios, Eventos, Entradas), cada uno con su configuración y su base. |
+| **2** | **Regla de negocio, lock y respuesta HTTP en el mismo handler de `POST /reservas/:id/reservar` (`src/routes/reservas.routes.js`):** la decisión "no hay cupos", la coordinación con Redis y el armado de la respuesta están mezcladas. Existe porque la protección contra la condición de carrera se agregó dentro del handler del TP2. | La regla de capacidad no se puede reutilizar ni probar sin HTTP y Redis; cualquier nuevo caso que consuma lugares (cancelar, vender varios) duplica la lógica. | Concentrar la capacidad y el lock en un único servicio (**Eventos**), con operaciones internas `reservar-aforo` y `liberar-aforo`. Quien quiera consumir lugares lo pide por API. |
+| **3** | **State Machine de Raft aplicando comandos directamente sobre el modelo de Usuario (Mongoose):** `src/raft/stateMachine.js` importa `User` y resuelve `CREATE_USER`, `UPDATE_USER` y `DELETE_USER`; a su vez `src/routes/users.routes.js` importa el estado y la replicación de Raft. Existe porque en el TP4 se integró el CRUD existente al log. | Agregar un recurso nuevo exige modificar el módulo de consenso; no se puede cambiar el modelo sin tocar la replicación; los handlers HTTP no se pueden probar sin Raft. | Que el consenso sea un mecanismo genérico (comandos opacos) y que cada servicio aporte su propia State Machine. Raft no se publica como servicio de negocio. |
 | **4** | **Recurso de reserva sin dueño ni contexto:** el cupo no sabe qué evento representa ni quién lo reservó; la operación de la persona y el contador viven juntos. Existe porque el TP2 tenía un único recurso de demostración. | No se puede saber quién tiene lugar, ni impedir que una persona tome muchos lugares, ni cancelar correctamente; cualquier regla de "por persona" obliga a modificar el contador. | Separar **capacidad del evento** (Eventos) de **orden y ticket de la persona** (Entradas). Entradas guarda el `usuarioId` y valida al usuario consultando a Usuarios. |
-| **5** | **Información de usuario compartida implícitamente:** si cualquier otro módulo necesita saber si un usuario existe, hoy lo resolvería leyendo la misma colección. | Acceso directo a datos ajenos: un cambio en el esquema rompe a los consumidores. | Consultar al servicio Usuarios por su API pública (`GET /usuarios/:id`) y usar solo `id` y `activo`. |
+| **5** | **Información de usuario compartida implícitamente:** el recurso de reserva no tiene ningún vínculo con el usuario; si otro módulo necesita saber si un usuario existe o está habilitado, hoy lo resolvería leyendo el modelo `User` directamente. | Acceso directo a datos ajenos: un cambio en el esquema rompe a los consumidores. | Consultar al servicio Usuarios por su API pública (`GET /usuarios/:id`) y usar solo `id` y `activo`. |
 
 ---
 
@@ -189,9 +190,9 @@ Se proponen **tres servicios de negocio**, cada uno con una responsabilidad dist
 | **Nombre** | `usuarios-service` |
 | **Responsabilidad principal** | Mantener la identidad y los datos personales de las personas registradas. |
 | **Operaciones** | Alta, consulta individual, listado, modificación y baja de usuarios; informar si un usuario existe y está activo. |
-| **Reglas de negocio** | Campos obligatorios (`dni`, `nombreApellido`, `fechaNacimiento`, `email`, `direccion`); `dni` y `email` únicos (409); fecha de nacimiento con formato y calendario válidos; la baja es **lógica** (`activo = false`) para no dejar entradas de otros servicios apuntando a un usuario inexistente. |
-| **Datos propios** | `usuarios`: `id`, `dni`, `nombreApellido`, `fechaNacimiento`, `email`, `direccion`, `activo` (campo nuevo). |
-| **Endpoints** | **Migran del servicio actual:** `GET /usuarios`, `GET /usuarios/:id`, `POST /usuarios`, `PUT /usuarios/:id`, `DELETE /usuarios/:id` (pasa a baja lógica). **Nuevos:** `GET /health`. |
+| **Reglas de negocio** | Campos obligatorios y con formato válido; `email` único (409), y `dni` único cuando se incorpore ese campo; fecha de nacimiento con formato y calendario válidos; la baja es **lógica** (`activo = false`) para no dejar entradas de otros servicios apuntando a un usuario inexistente. |
+| **Datos propios** | `usuarios`. Campos existentes: `id`, `nombre`, `apellido`, `email`. Campos **nuevos** que se incorporan en la migración: `dni`, `fechaNacimiento` (reemplaza a `edad`, que pasa a calcularse), `direccion` y `activo`. |
+| **Endpoints** | **Migran del servicio actual** (con el prefijo renombrado de `/users` a `/usuarios`): `GET /usuarios`, `GET /usuarios/:id`, `POST /usuarios`, `PUT /usuarios/:id`, `DELETE /usuarios/:id` (pasa a baja lógica). **Nuevos:** `GET /health`. |
 | **Dependencias** | Ninguna. No invoca a otros servicios. |
 | **Fuera de alcance** | Qué entradas compró cada usuario; eventos; autenticación y contraseñas (no existen hoy en la aplicación). |
 | **Justificación** | Es el grupo A del análisis: la parte más autónoma. Sus reglas (unicidad, validación de datos personales) cambian por motivos propios y no dependen de ningún otro dato. Al convertirse en la única autoridad sobre la identidad, los demás servicios dejan de leer su colección. |
@@ -205,7 +206,7 @@ Se proponen **tres servicios de negocio**, cada uno con una responsabilidad dist
 | **Operaciones** | Crear, consultar, modificar y cancelar eventos; reservar aforo; liberar aforo; informar disponibilidad y vigencia. |
 | **Reglas de negocio** | Estados `PUBLICADO`, `AGOTADO`, `CANCELADO`, `FINALIZADO`. No se reserva aforo si el evento no está `PUBLICADO` o ya pasó. `0 ≤ disponibles ≤ aforoTotal`. Al llegar a 0 pasa a `AGOTADO`; al liberar vuelve a `PUBLICADO`. El aforo total no puede bajar de lo ya vendido. Exclusión mutua **por evento** con lock en Redis y TTL. Reservar y liberar son **idempotentes** por `referencia`. |
 | **Datos propios** | `eventos`: `id`, `nombre`, `fecha`, `lugar`, `precio`, `aforoTotal`, `disponibles`, `estado`. `movimientosAforo`: `referencia`, `tipo` (reserva/liberación), `cantidad` (para la idempotencia). Claves de lock `lock:evento:{id}` en Redis. |
-| **Endpoints** | **Migran del servicio actual:** `GET /reservas` → `GET /eventos` y `GET /eventos/:id`; `POST /reservas/reservar` → `POST /eventos/:id/reservar-aforo` (lógica de lock y descuento). **Nuevos:** `POST /eventos`, `PUT /eventos/:id`, `PATCH /eventos/:id/cancelar`, `POST /eventos/:id/liberar-aforo` (interno), `GET /health`. |
+| **Endpoints** | **Migran del servicio actual:** `GET /reservas` → `GET /eventos` y `GET /eventos/:id`; `POST /reservas/:id/reservar` → `POST /eventos/:id/reservar-aforo` (lógica de lock y descuento). **Nuevos:** `POST /eventos`, `PUT /eventos/:id`, `PATCH /eventos/:id/cancelar`, `POST /eventos/:id/liberar-aforo` (interno), `GET /health`. |
 | **Dependencias** | Ninguna. No invoca a otros servicios (usa Redis como infraestructura propia). |
 | **Fuera de alcance** | Quién compró; tickets; órdenes; precio histórico de una compra; reembolsos; datos del usuario. |
 | **Justificación** | Es el dueño de la regla de capacidad (grupo B). Concentrar ahí el contador y su lock deja **una sola autoridad** sobre la disponibilidad, con la sección crítica del TP2 en un único lugar. Tiene reglas propias (estados, fechas, cancelación del evento) por lo que no es un simple contador. |
@@ -219,7 +220,7 @@ Se proponen **tres servicios de negocio**, cada uno con una responsabilidad dist
 | **Operaciones** | Crear orden de compra, consultar orden, cancelar orden, listar entradas de un usuario, validar un ticket en el ingreso. |
 | **Reglas de negocio** | Máximo de N entradas por usuario por evento (configurable, por defecto 4). Solo compran usuarios activos. Estados de orden `PENDIENTE`, `CONFIRMADA`, `CANCELADA`, `RECHAZADA`; estados de ticket `VALIDO`, `USADO`. Ticket de **uso único** mediante actualización condicional `VALIDO → USADO`. Cancelación permitida hasta cierto plazo antes del evento (por defecto 24 h). El `ordenId` es la clave de idempotencia. El `precioUnitario` se **congela** al comprar. |
 | **Datos propios** | `ordenes`: `id`, `usuarioId`, `eventoId`, `cantidad`, `precioUnitario`, `estado`, `fechaCreacion`. `tickets`: `codigo` (único), `ordenId`, `estado`. |
-| **Endpoints** | **Nuevos:** `POST /ordenes`, `GET /ordenes/:id`, `DELETE /ordenes/:id` (cancelar), `GET /entradas?usuarioId=`, `POST /entradas/validar`, `GET /health`. **Cambio de contrato:** la operación de "reservar" que hoy el cliente pide a `POST /reservas/reservar` pasa a ser `POST /ordenes`; el cliente ya no habla con el contador de aforo. |
+| **Endpoints** | **Nuevos:** `POST /ordenes`, `GET /ordenes/:id`, `DELETE /ordenes/:id` (cancelar), `GET /entradas?usuarioId=`, `POST /entradas/validar`, `GET /health`. **Cambio de contrato:** la operación de "reservar" que hoy el cliente pide a `POST /reservas/:id/reservar` pasa a ser `POST /ordenes`; el cliente ya no habla con el contador de aforo. |
 | **Dependencias** | `usuarios-service` (`GET /usuarios/:id`); `eventos-service` (`GET /eventos/:id`, `POST /eventos/:id/reservar-aforo`, `POST /eventos/:id/liberar-aforo`). |
 | **Fuera de alcance** | Contar el aforo y decidir si el evento admite venta (de Eventos); datos personales (de Usuarios); cobro real y reembolsos. |
 | **Justificación** | Resuelve la carencia del grupo B: separa **la capacidad** (que es del evento) de **la operación de cada persona**. Sus reglas (máximo por usuario, uso único, plazo de cancelación) cambian por motivos de política de venta, sin tocar la capacidad. Guardar `usuarioId` y `precioUnitario` propios evita copiar el perfil del usuario y protege el histórico si el precio del evento cambia. |
@@ -417,7 +418,7 @@ flowchart TB
 | Criterio | `usuarios-service` | `eventos-service` | `entradas-service` |
 |----------|--------------------|-------------------|--------------------|
 | Su responsabilidad principal se explica en una frase clara | ✅ Mantener la identidad de las personas | ✅ Controlar eventos y que nunca se supere el aforo | ✅ Gestionar la compra y el ticket de cada persona |
-| Agrupa reglas de negocio relacionadas entre sí | ✅ Unicidad y validez de datos personales | ✅ Estados, fechas y capacidad | ✅ Máximo por persona, uso único, plazo de cancelación |
+| Agrupa reglas de negocio relacionadas entre sí | ✅ Validez y unicidad de los datos personales | ✅ Estados, fechas y capacidad | ✅ Máximo por persona, uso único, plazo de cancelación |
 | Posee datos o decisiones de las que es responsable | ✅ `usuarios` | ✅ `eventos`, aforo, locks | ✅ `ordenes`, `tickets` |
 | No fue creado solo porque existe una tabla, entidad o controlador | ✅ Es una responsabilidad de identidad, con reglas propias | ✅ Contiene reglas y lock, no solo un CRUD de eventos | ✅ Agrupa dos entidades (orden y ticket) por su ciclo de vida común |
 | Su interfaz pública se define sin exponer detalles internos | ✅ | ✅ El lock y los movimientos no se exponen | ✅ |
@@ -444,8 +445,9 @@ flowchart TB
 
 ### Supuestos y limitaciones conocidas
 
-- Se agrega el campo `activo` a Usuarios y la baja pasa a ser lógica (decisión nueva, no existe en la app base).
+- Se agregan a Usuarios los campos `activo`, `dni`, `fechaNacimiento` y `direccion` (hoy no existen en la app base, que tiene `nombre`, `apellido`, `email` y `edad`), y la baja pasa a ser lógica.
 - Los valores `MAX_ENTRADAS_POR_USUARIO=4` y `PLAZO_CANCELACION_HORAS=24` son propuestas configurables.
 - No se modela el cobro real ni los reembolsos de eventos cancelados.
 - Las compras simultáneas de un mismo usuario para un mismo evento podrían superar el máximo si no se serializan por (usuario, evento); queda como mejora para la implementación.
 - La conservación de Raft sobre algún servicio (candidato: Eventos) se decide en los trabajos de implementación.
+- La espera de 2 s dentro del lock de reservas es una demostración del TP2: no se migra a Eventos.

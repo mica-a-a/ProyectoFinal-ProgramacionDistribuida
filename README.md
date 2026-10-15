@@ -15,7 +15,7 @@ Trabajo final de la materia programacion distribuida
 | `Nievas Milagros` | `milinievas` |
 
 
-**Grupo:** `sin def`
+**Grupo:** `2`
 
 **Docentes agregados como colaboradores:** alvarezadriel@uch.edu.ar · cortezedgardo@uch.edu.ar
 

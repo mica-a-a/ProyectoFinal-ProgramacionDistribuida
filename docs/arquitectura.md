@@ -2,9 +2,9 @@
 
 **Materia:** Programación Distribuida · Licenciatura en Sistemas de Información
 **Trabajo Práctico N° 5:** De API REST a Microservicios
-**Fecha:** `COMPLETAR`
-**Grupo:** `COMPLETAR`
-**Integrantes:** `COMPLETAR (3 a 5 integrantes: Apellido y Nombre)`
+**Fecha:** `16 de octubre 2026`
+**Grupo:** `2`
+**Integrantes:** `Bazan Franco, Gorri Juan, Le Donne Micaela,Molina Agostina,Nievas Milagros`
 
 > **Dominio elegido:** Eventos y entradas. Usuarios registrados compran entradas para eventos con aforo limitado, reciben un ticket y lo presentan en el ingreso, donde se valida.
 
@@ -38,8 +38,6 @@ La aplicación base es la API de **Usuarios** desarrollada en los trabajos anter
 
 **Alcance de este TP:** análisis y diseño. No se implementan los microservicios; se deja documentada y justificada la arquitectura para comenzar la migración del código en los trabajos siguientes.
 
-> **Nota de fuentes:** el inventario se construyó a partir del código del TP1 y de los informes de los TP2, TP3 y TP4. Los puntos marcados con `⚠ Verificar` deben contrastarse con el código de la versión base que el grupo acuerde (rutas exactas, nombres de campos).
-
 ---
 
 ## 2. Análisis de la aplicación existente (inventario)
@@ -66,8 +64,8 @@ La aplicación base es la API de **Usuarios** desarrollada en los trabajos anter
 | `GET /reservas` | Consultar el estado del recurso de reserva | Recurso de reserva (`disponibles`) | Memoria del proceso |
 | `POST /reservas/reservar` | Descontar un cupo: toma el lock, verifica `disponibles > 0`, descuenta, libera el lock; 423 si el recurso está bloqueado, 409 si no hay cupos | Recurso de reserva | Redis/Memurai (lock con `NX` y TTL), Raft (TP4) |
 | `GET /api-docs`, `GET /api-docs.json` | Documentación OpenAPI/Swagger de la API | Especificación OpenAPI | swagger-ui-express |
-| Endpoints de diagnóstico del nodo y del log (TP4) | Mostrar identidad, rol, término, Leader conocido y log `⚠ Verificar rutas` | Estado Raft | Módulo Raft |
-| RPC internos Raft: solicitud de voto y AppendEntries (TP4) `⚠ Verificar rutas` | Elección de Leader, heartbeats, replicación | Término, voto, log | HTTP entre nodos |
+| Endpoints de diagnóstico del nodo y del log (TP4) | Mostrar identidad, rol, término, Leader conocido y log | Estado Raft | Módulo Raft |
+| RPC internos Raft: solicitud de voto y AppendEntries (TP4) | Elección de Leader, heartbeats, replicación | Término, voto, log | HTTP entre nodos |
 | Logging (transversal) | Registro INFO/WARN/ERROR con rotación y retención | Archivos `logs/` | Winston |
 | HTTPS (transversal) | Cifrado de la API externa | Certificado y clave de desarrollo | Variables de entorno |
 

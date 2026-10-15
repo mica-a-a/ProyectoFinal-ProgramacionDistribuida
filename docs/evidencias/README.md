@@ -17,6 +17,7 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 
 ### Identidad de Git de cada integrante
 ![Git config - Le Donne](01-gitConfig-LeDonne.png)
+![Git config - Bazan](01-gitConfig-Bazan.png)
 
 
 

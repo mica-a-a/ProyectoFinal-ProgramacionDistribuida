@@ -38,6 +38,8 @@ La aplicación base es la API de **Usuarios** desarrollada en los trabajos anter
 
 **Alcance de este TP:** análisis y diseño. No se implementan los microservicios; se deja documentada y justificada la arquitectura para comenzar la migración del código en los trabajos siguientes.
 
+> **Nota de fuentes:** armamos el inventario a partir del código del TP1 (`app-base/`) y de los informes de los TP2, TP3 y TP4. Los endpoints de Raft los describimos por su función y no por su ruta exacta, porque ese código no está en esta versión base; las rutas exactas se confirman al migrar el servicio que use Raft.
+
 ---
 
 ## 2. Análisis de la aplicación existente (inventario)

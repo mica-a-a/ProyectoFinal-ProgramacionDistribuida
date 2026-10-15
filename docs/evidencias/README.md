@@ -19,7 +19,8 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 ![Git config - Le Donne](01-gitConfig-LeDonne.png)
 ![Git config - Bazan](01-gitConfig-Bazan.png)
 ![Git config - Molina](01-gitConfig-Molina.png)
-
+![Git config - Gorri](01-gitConfig-Gorri.png)
+![Git config - Nievas](01-gitConfig-Nievas.png)
 
 
 ### Docentes agregados como colaboradores

@@ -27,7 +27,8 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 ![Colaboradores](02-collaborators-github.png)
 
 ### Versión base funcionando
-![App base funcionando](03-app-base-funcionando.png)
+![App base funcionando](03a-app-base-funcionando.png)
+![App base funcionando](03b-app-base-funcionando.png)
 
 ### .gitignore y variables de ejemplo
 ![.gitignore y .env.example en el repositorio](04a-gitignore-env-example.png)

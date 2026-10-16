@@ -40,3 +40,9 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 
 ### Pull Request integrado
 ![Pull Request integrado](06-pull-request.png)
+
+### Docker Version y Docker Hello World
+![Docker Version Integrado-LeDonne](tp6-01a-docker-versiones-info-LeDonne.png)
+![Docker Version Integrado-Bazan](tp6-01a-docker-versiones-info-Bazan.png)
+![Docker Hello World-LeDonne](tp6-01b-docker-hello-world-LeDonne.png)
+![Docker Hello World-Bazan](tp6-01b-docker-hello-world-Bazan.png)

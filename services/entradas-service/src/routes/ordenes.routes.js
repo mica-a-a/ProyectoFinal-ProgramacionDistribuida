@@ -1,10 +1,11 @@
 const { Router } = require('express');
-const { crearOrden, obtenerOrdenPorId, cancelarOrden } = require('../controllers/ordenes.controller');
+const { requireDb } = require('../config/db');
+const c = require('../controllers/ordenes.controller');
 
+// requireDb se aplica ruta por ruta: /health y /api-docs siguen respondiendo sin base de datos.
 const router = Router();
-
-router.post('/ordenes', crearOrden);
-router.get('/ordenes/:id', obtenerOrdenPorId);
-router.delete('/ordenes/:id', cancelarOrden);
+router.post('/ordenes', requireDb, c.crear);
+router.get('/ordenes/:id', requireDb, c.obtener);
+router.delete('/ordenes/:id', requireDb, c.cancelar);
 
 module.exports = router;

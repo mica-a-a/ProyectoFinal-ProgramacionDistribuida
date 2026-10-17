@@ -1,20 +1,12 @@
-async function listarEntradas(req, res, next) {
-    try {
-        return res.status(200).json([]);
-    } catch (error) {
-        next(error);
-    }
-}
+const asyncHandler = require('../config/asyncHandler');
+const entradas = require('../services/entradas.service');
 
-async function validarEntrada(req, res, next) {
-    try {
-        return res.status(200).json({ valida: true });
-    } catch (error) {
-        next(error);
-    }
-}
+const listar = asyncHandler(async (req, res) => {
+  res.status(200).json(await entradas.listarEntradas(req.query.usuarioId));
+});
 
-module.exports = {
-    listarEntradas,
-    validarEntrada
-};
+const validar = asyncHandler(async (req, res) => {
+  res.status(200).json(await entradas.validarTicket(req.body && req.body.codigo));
+});
+
+module.exports = { listar, validar };

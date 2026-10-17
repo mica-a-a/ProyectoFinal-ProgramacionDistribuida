@@ -6,14 +6,17 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/entradas.test.js",
+    "mocks": "node scripts/run-mocks.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   },
   "dependencies": {
     "dotenv": "^16.6.1",
     "express": "^4.22.3",
+    "mongoose": "^9.11.2",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0"
   }

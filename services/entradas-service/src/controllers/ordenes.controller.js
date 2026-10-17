@@ -1,50 +1,16 @@
-async function crearOrden(req, res, next) {
-    try {
-        const { usuarioId, eventoId, cantidad } = req.body;
+const asyncHandler = require('../config/asyncHandler');
+const ordenes = require('../services/ordenes.service');
 
-        // Generamos datos mock / temporales para validar el flujo
-        const ordenId = `ord-${Date.now()}`;
-        const codigoTicket = `TICK-${Math.floor(1000 + Math.random() * 9000)}`;
+const crear = asyncHandler(async (req, res) => {
+  res.status(201).json(await ordenes.crearOrden(req.body));
+});
 
-        return res.status(201).json({
-            id: ordenId,
-            usuarioId: usuarioId || 'u1',
-            eventoId: eventoId || 'e1',
-            cantidad: cantidad || 1,
-            estado: 'CREADA',
-            codigoTicket: codigoTicket
-        });
-    } catch (error) {
-        next(error);
-    }
-}
+const obtener = asyncHandler(async (req, res) => {
+  res.status(200).json(await ordenes.obtenerOrden(req.params.id));
+});
 
-async function obtenerOrdenPorId(req, res, next) {
-    try {
-        const { id } = req.params;
-        return res.status(200).json({
-            id,
-            estado: 'CREADA'
-        });
-    } catch (error) {
-        next(error);
-    }
-}
+const cancelar = asyncHandler(async (req, res) => {
+  res.status(200).json(await ordenes.cancelarOrden(req.params.id));
+});
 
-async function cancelarOrden(req, res, next) {
-    try {
-        const { id } = req.params;
-        return res.status(200).json({
-            id,
-            estado: 'CANCELADA'
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-module.exports = {
-    crearOrden,
-    obtenerOrdenPorId,
-    cancelarOrden
-};
+module.exports = { crear, obtener, cancelar };

@@ -9,6 +9,8 @@ function seedUsuarios() {
     u1: { id: 'u1', nombreApellido: 'Lucas Fernández', activo: true },
     u2: { id: 'u2', nombreApellido: 'Sofía Martínez', activo: true },
     u3: { id: 'u3', nombreApellido: 'Usuario Inactivo', activo: false },
+    u7: { id: 'u7', nombreApellido: '7', activo: true },
+
   };
 }
 

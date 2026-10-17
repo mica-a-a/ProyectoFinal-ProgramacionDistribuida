@@ -1,9 +1,11 @@
-// Datos de prueba reproducibles. Es idempotente: se puede correr varias veces.
+// Datos de prueba reproducibles. Cada ejecución deja el estado inicial conocido
+// (eventos con su aforo original y sin movimientos previos): se puede correr varias veces.
 //   Local:   npm run seed
 //   Docker:  docker compose exec eventos-service npm run seed
 const mongoose = require('mongoose');
 const config = require('../src/config/config');
 const Evento = require('../src/models/Evento');
+const MovimientoAforo = require('../src/models/MovimientoAforo');
 
 const DIA = 24 * 60 * 60 * 1000;
 const en = (dias) => new Date(Date.now() + dias * DIA);
@@ -19,7 +21,10 @@ const eventos = [
 async function main() {
   await mongoose.connect(config.mongodbUri, { serverSelectionTimeoutMS: 5000 });
   for (const e of eventos) {
-    await Evento.updateOne({ nombre: e.nombre }, { $set: e }, { upsert: true });
+    const doc = await Evento.findOneAndUpdate({ nombre: e.nombre }, { $set: e }, { upsert: true, new: true });
+    // También se borran los movimientos de aforo previos de ese evento: si no, una referencia
+    // usada en una prueba anterior se trataría como repetida (idempotente) y no descontaría.
+    await MovimientoAforo.deleteMany({ eventoId: doc._id });
   }
   console.log(`Seed aplicado: ${eventos.length} eventos en ${mongoose.connection.name}`);
   await mongoose.disconnect();

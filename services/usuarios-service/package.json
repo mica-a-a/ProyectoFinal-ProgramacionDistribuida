@@ -6,7 +6,9 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node --test",
+    "seed": "node scripts/seed.js"
   },
   "engines": {
     "node": ">=20"
@@ -14,6 +16,7 @@
   "dependencies": {
     "dotenv": "^16.6.1",
     "express": "^4.22.3",
+    "mongoose": "^8.24.5",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0"
   }

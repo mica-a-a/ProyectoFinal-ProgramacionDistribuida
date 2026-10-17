@@ -44,5 +44,7 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 ### Docker Version y Docker Hello World
 ![Docker Version Integrado-LeDonne](tp6-01a-docker-versiones-info-LeDonne.png)
 ![Docker Version Integrado-Bazan](tp6-01a-docker-versiones-info-Bazan.png)
+![Docker Version Integrado-Gorri](tp6-01a-docker-versiones-info-Gorri.png)
 ![Docker Hello World-LeDonne](tp6-01b-docker-hello-world-LeDonne.png)
 ![Docker Hello World-Bazan](tp6-01b-docker-hello-world-Bazan.png)
+![Docker Hello World-Gorri](tp6-01b-docker-hello-world-Gorri.png)

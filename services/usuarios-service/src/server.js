@@ -1,11 +1,12 @@
 const config = require('./config/config');
 const logger = require('./config/logger');
 const app = require('./app');
+const { connectWithRetry } = require('./config/db');
 
-// TODO: conectar acá a la base propia (y a Redis en eventos-service) con manejo de
-// reintentos: el servicio debe arrancar y responder de forma controlada aunque una
-// dependencia todavía no esté lista.
-
+// Primero se abre el puerto y recién después se conecta a Mongo (con reintentos):
+// si la base todavía no está lista, el servicio ya responde /health y devuelve
+// 503 controlado en los endpoints que necesitan la base.
 app.listen(config.port, () => {
   logger.info('servicio iniciado', { port: config.port });
+  connectWithRetry();
 });

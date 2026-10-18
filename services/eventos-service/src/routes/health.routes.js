@@ -1,7 +1,10 @@
 const { Router } = require('express');
-const { health } = require('../controllers/health.controller');
 
-const router = Router();
-router.get('/health', health);
+function createHealthRoutes(controller) {
+  const router = Router();
+  router.get('/health', controller.health);
+  router.get('/ready', controller.ready);
+  return router;
+}
 
-module.exports = router;
+module.exports = { createHealthRoutes };

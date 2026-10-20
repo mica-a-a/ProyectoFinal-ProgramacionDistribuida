@@ -36,7 +36,47 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 
 ### Ramas y commits
 ![Ramas en GitHub](05a-ramas-github.png)
+![Ramas en GitHub](tp6-entradas-01-tests.png)
+![Ramas en GitHub](tp6-entradas-02-compra-ok.png)
+![Ramas en GitHub](tp6-entradas-03-consultas-validar1.png)
+![Ramas en GitHub](tp6-entradas-03-consultas-validar2.png)
+![Ramas en GitHub](tp6-entradas-04-errores-negocio.png)
+![Ramas en GitHub](tp6-entradas-05-cancelacion.png)
+![Ramas en GitHub](tp6-entradas-06-fuera-de-plazo.png)
+![Ramas en GitHub](tp6-entradas-07-caida-503.png)
+![Ramas en GitHub](tp6-entradas-08-recuperacion.png)
+![Ramas en GitHub](tp6-entradas-09-compass-Ordenes1.png)
+![Ramas en GitHub](tp6-entradas-9-compass-Ordenes2.png)
+![Ramas en GitHub](tp6-entradas-09-compass-Tickets.png)
+![Ramas en GitHub](tp6-02-build-entradas.service.png)
+![Ramas en GitHub](tp6-eventos-service-prueb1.png)
+![Ramas en GitHub](tp6-eventos-service-prueb2.png)
+![Ramas en GitHub](tp6-eventos-service-prueb3.png)
+![Ramas en GitHub](tp6-eventos-service-prueb4.png)
+![Ramas en GitHub](tp6-eventos-service-prueb5.png)
+![Ramas en GitHub](tp6-02-build-eventos.service.png)
+![Ramas en GitHub](tp6-users-prueb1.png)
+![Ramas en GitHub](tp6-users-prueb2.png)
+![Ramas en GitHub](tp6-users-prueb.png)
+![Ramas en GitHub](tp6-02-build-usuarios.service.png)
 ![Historial de commits](05b-historial-github.png)
+![Docker Images](tp6-02-docker-images.png)
+
+### Docker
+![Verificacion Docker](tp6-01-docker-verificacion-Nievas.png)
+![Verificacion Docker](tp6-01b-docker-verificacion-Nievas.png)
+![Verificacion Docker](tp6-01a-docker-versiones.info-Gorri.png)
+![Verificacion Docker](tp6-01a-docker-verificacion-01-Bazan.png)
+![Verificacion Docker](tp6-01a-docker-verificacion-01b-Bazan.png)
+![Verificacion Docker](tp6-01a-docker-verificacion-01-LeDonne.png)
+![Verificacion Docker](tp6-01a-docker-verificacion-01b-LeDonne.png)
+![Verificacion Docker](tp6-01a-docker-verificacion-01-Molina.png)
+![Verificacion Docker](tp6-01a-docker-verificacion-01b-Molina.png)
+
+### Healt
+![Health de las Ramas](tp6-03-health-entradas.png)
+![Health de las Ramas](tp6-03-health-eventos.png)
+![Health de las Ramas](tp6-03-health-usuarios.png)
 
 ### Pull Request integrado
 ![Pull Request integrado](06-pull-request.png)

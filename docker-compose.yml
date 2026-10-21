@@ -1,0 +1,147 @@
+# TP6 - Solucion integrada: 3 microservicios + 3 MongoDB (una por servicio) + Redis.
+#
+#   Levantar:  docker compose up --build        (o -d para dejarlo en segundo plano)
+#   Estado:    docker compose ps
+#   Logs:      docker compose logs -f <servicio>
+#   Detener:   docker compose down              (conserva los datos)
+#              docker compose down -v           (BORRA los volumenes: reinicia los datos)
+#
+# Los valores se toman del archivo .env de la raiz (ver .env.example). Todos tienen default,
+# asi que tambien funciona sin .env.
+
+# Name fijo: los volumenes y redes quedan como tp6-eventos-entradas_<nombre>
+# sin depender del nombre de la carpeta donde cada integrante clono el repo.
+name: tp6-eventos-entradas
+
+x-healthcheck-node: &node-healthcheck
+  # Alpine no trae curl: se usa el fetch nativo de Node que ya esta en la imagen.
+  test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+  interval: 10s
+  timeout: 3s
+  retries: 5
+  start_period: 10s
+
+x-mongo-healthcheck: &mongo-healthcheck
+  test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 15s
+
+services:
+  # ---------------------------------------------------------------- usuarios
+  usuarios-db:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - usuarios-data:/data/db
+    healthcheck: *mongo-healthcheck
+    networks: [usuarios-net]          # solo usuarios-service puede alcanzarla
+
+  usuarios-service:
+    build: ./services/usuarios-service
+    image: ${IMAGE_PREFIX:-grupo}/usuarios-service:tp6
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: usuarios-service
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MONGODB_URI: mongodb://usuarios-db:27017/usuarios
+    ports:
+      - "${USUARIOS_HOST_PORT:-3001}:3000"
+    depends_on:
+      usuarios-db:
+        condition: service_healthy
+    healthcheck: *node-healthcheck
+    networks: [tp6-net, usuarios-net]
+
+  # ----------------------------------------------------------------- eventos
+  eventos-db:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - eventos-data:/data/db
+    healthcheck: *mongo-healthcheck
+    networks: [eventos-net]           # solo eventos-service puede alcanzarla
+
+  # Redis: lo usa unicamente eventos-service (lock del aforo). No lleva volumen a proposito:
+  # los locks tienen TTL y no hay nada que conservar entre reinicios.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [eventos-net]
+
+  eventos-service:
+    build: ./services/eventos-service
+    image: ${IMAGE_PREFIX:-grupo}/eventos-service:tp6
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: eventos-service
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MONGODB_URI: mongodb://eventos-db:27017/eventos
+      REDIS_URL: redis://redis:6379
+      LOCK_TTL_MS: ${LOCK_TTL_MS:-5000}
+    ports:
+      - "${EVENTOS_HOST_PORT:-3002}:3000"
+    depends_on:
+      eventos-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck: *node-healthcheck
+    networks: [tp6-net, eventos-net]
+
+  # ---------------------------------------------------------------- entradas
+  entradas-db:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - entradas-data:/data/db
+    healthcheck: *mongo-healthcheck
+    networks: [entradas-net]          # solo entradas-service puede alcanzarla
+
+  entradas-service:
+    build: ./services/entradas-service
+    image: ${IMAGE_PREFIX:-grupo}/entradas-service:tp6
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: entradas-service
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MONGODB_URI: mongodb://entradas-db:27017/entradas
+      USUARIOS_SERVICE_URL: http://usuarios-service:3000
+      EVENTOS_SERVICE_URL: http://eventos-service:3000
+      REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-3000}
+      MAX_ENTRADAS_POR_USUARIO: ${MAX_ENTRADAS_POR_USUARIO:-4}
+      PLAZO_CANCELACION_HORAS: ${PLAZO_CANCELACION_HORAS:-24}
+    ports:
+      - "${ENTRADAS_HOST_PORT:-3003}:3000"
+    # Solo la base es obligatoria para arrancar. Usuarios y Eventos NO se esperan a proposito:
+    # entradas-service debe poder arrancar y responder 503 si alguno no esta (prueba 15.1).
+    depends_on:
+      entradas-db:
+        condition: service_healthy
+    healthcheck: *node-healthcheck
+    networks: [tp6-net, entradas-net]
+
+# Redes:
+#   tp6-net       comunicacion HTTP entre microservicios (nombre DNS = nombre del servicio).
+#   *-net         una red privada por servicio con SU base (y Redis en eventos-net).
+# Asi la propiedad de los datos se cumple tambien a nivel de red: un servicio no puede ni
+# resolver el nombre de la base de otro (ej. entradas-service no ve a usuarios-db).
+networks:
+  tp6-net:
+  usuarios-net:
+  eventos-net:
+  entradas-net:
+
+volumes:
+  usuarios-data:
+  eventos-data:
+  entradas-data:

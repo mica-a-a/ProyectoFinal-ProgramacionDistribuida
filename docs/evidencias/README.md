@@ -80,3 +80,35 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 
 ### Pull Request integrado
 ![Pull Request integrado](06-pull-request.png)
+<<<<<<< HEAD
+=======
+
+### Docker Version y Docker Hello World
+![Docker Version Integrado-LeDonne](tp6-01a-docker-versiones-info-LeDonne.png)
+![Docker Version Integrado-Bazan](tp6-01a-docker-versiones-info-Bazan.png)
+![Docker Version Integrado-Gorri](tp6-01a-docker-versiones-info-Gorri.png)
+![Docker Version Integrado-Nievas](tp6-01a-docker-versiones-info-Nievas.png)
+![Docker Hello World-LeDonne](tp6-01b-docker-hello-world-LeDonne.png)
+![Docker Hello World-Bazan](tp6-01b-docker-hello-world-Bazan.png)
+![Docker Hello World-Gorri](tp6-01b-docker-hello-world-Gorri.png)
+![Docker Hello World-Nievas](tp6-01b-docker-hello-world-Nievas.png)
+
+### Pruebas
+![Pruebas](tp6-04-compose-config.png)
+![Pruebas](tp6-05-compose-ps.png)
+![Pruebas](tp6-06-health-navegador.png)
+![Pruebas](tp6-07-datos.png)
+![Pruebas](tp6-08-negocio.png 1)
+![Pruebas](tp6-08-negocio.png 2)
+![Pruebas](tp6-10-swagger-entradas.png)
+![Pruebas](tp6-10-swagger-eventos.png)
+![Pruebas](tp6-10-swagger-usuarios.png)
+![Pruebas](tp6-11-fallo-dependencia.png)
+![Pruebas](tp6-12-fallo-redis.png)
+![Pruebas](tp6-13-fallo-db.png)
+![Pruebas](tp6-14-fallo-parcial.png)
+![Pruebas](tp6-15-logs.png)
+![Pruebas](tp6-17-persistencia.png)
+![Pruebas](tp6-18-config-docker.png)
+![Pruebas](tp6-18-config-local.png)
+>>>>>>> main

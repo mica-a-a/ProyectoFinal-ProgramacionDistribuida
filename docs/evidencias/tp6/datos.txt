@@ -1,0 +1,34 @@
+
+════════════════════════════════════════════════════════════════
+ TP6 · prueba: datos
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-21T01:48:47.447Z   equipo: win32 10.0.19045   node v24.22.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+
+▶ Seed de usuarios-service (IDs fijos 64b000000000000000000001 … 05)
+  $ docker compose exec -T usuarios-service npm run seed
+    > usuarios-service@1.0.0 seed
+    > node scripts/seed.js
+    
+    Seed OK: 5 usuarios (1 inactivo: Diego Paz)
+  ✔ seed de usuarios aplicado
+
+▶ Seed de eventos-service (5 eventos con aforo conocido)
+  $ docker compose exec -T eventos-service npm run seed
+    > eventos-service@1.0.0 seed
+    > node scripts/seed.js
+    
+    Seed aplicado: 5 eventos en eventos
+  ✔ seed de eventos aplicado
+
+▶ Limpiar órdenes y tickets de entradas-service (no tiene seed propio)
+  $ docker compose exec -T entradas-db mongosh --quiet entradas --eval db.ordens.deleteMany({}); db.tickets.deleteMany({})
+    { acknowledged: true, deletedCount: 0 }
+  ✔ colecciones ordens y tickets vaciadas
+
+▶ Verificar el estado inicial por la API
+  ✔ usuarios-service tiene los usuarios del seed (4 activos + 1 inactivo)
+  ✔ eventos-service tiene "Taller de Node.js" con 5 lugares disponibles
+  Procedimiento reproducible: este mismo comando deja siempre el mismo estado inicial.
+
+RESULTADO: datos → OK (5 verificaciones)

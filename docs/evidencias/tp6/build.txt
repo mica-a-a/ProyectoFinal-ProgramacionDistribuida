@@ -1,0 +1,51 @@
+
+════════════════════════════════════════════════════════════════
+ TP6 · prueba: build
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-21T01:48:31.794Z   equipo: win32 10.0.19045   node v24.22.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+
+▶ Build de usuarios-service
+  $ docker build -t grupo2/usuarios-service:tp6 ./services/usuarios-service
+    … (41 líneas anteriores omitidas)
+    #10 exporting manifest list sha256:97779c5f4df7fed01050b8ae039076bdc6fa1fe6639c745c886dfee07c3289dc
+    #10 exporting manifest list sha256:97779c5f4df7fed01050b8ae039076bdc6fa1fe6639c745c886dfee07c3289dc 0.1s done
+    #10 naming to docker.io/grupo2/usuarios-service:tp6
+    #10 naming to docker.io/grupo2/usuarios-service:tp6 0.1s done
+    #10 unpacking to docker.io/grupo2/usuarios-service:tp6 0.0s done
+    #10 DONE 0.6s
+  ✔ docker build de usuarios-service termina correctamente
+
+▶ Build de eventos-service
+  $ docker build -t grupo2/eventos-service:tp6 ./services/eventos-service
+    … (41 líneas anteriores omitidas)
+    #10 exporting manifest list sha256:23dde5fbc6a2a173660d53729dcafa614b340ddaa93f69876bf7739c46063fc7
+    #10 exporting manifest list sha256:23dde5fbc6a2a173660d53729dcafa614b340ddaa93f69876bf7739c46063fc7 0.1s done
+    #10 naming to docker.io/grupo2/eventos-service:tp6
+    #10 naming to docker.io/grupo2/eventos-service:tp6 0.0s done
+    #10 unpacking to docker.io/grupo2/eventos-service:tp6 0.0s done
+    #10 DONE 0.6s
+  ✔ docker build de eventos-service termina correctamente
+
+▶ Build de entradas-service
+  $ docker build -t grupo2/entradas-service:tp6 ./services/entradas-service
+    … (42 líneas anteriores omitidas)
+    #10 exporting manifest list sha256:e15a0427e22d4e7ba14565a3c7849670bf90728ff8c016b75626eb5acfab80ae
+    #10 exporting manifest list sha256:e15a0427e22d4e7ba14565a3c7849670bf90728ff8c016b75626eb5acfab80ae 0.2s done
+    #10 naming to docker.io/grupo2/entradas-service:tp6
+    #10 naming to docker.io/grupo2/entradas-service:tp6 0.0s done
+    #10 unpacking to docker.io/grupo2/entradas-service:tp6 0.0s done
+    #10 DONE 0.8s
+  ✔ docker build de entradas-service termina correctamente
+
+▶ Imágenes generadas
+  $ docker image ls --filter reference=grupo2/*-service
+    IMAGE                         ID             DISK USAGE   CONTENT SIZE   EXTRA
+    grupo2/entradas-service:tp6   e15a0427e22d        280MB         67.7MB        
+    grupo2/eventos-service:tp6    23dde5fbc6a2        287MB         68.2MB        
+    grupo2/usuarios-service:tp6   97779c5f4df7        282MB           68MB
+  ✔ existe la imagen grupo2/usuarios-service:tp6
+  ✔ existe la imagen grupo2/eventos-service:tp6
+  ✔ existe la imagen grupo2/entradas-service:tp6
+
+RESULTADO: build → OK (6 verificaciones)

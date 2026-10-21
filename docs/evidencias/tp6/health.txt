@@ -1,0 +1,42 @@
+
+════════════════════════════════════════════════════════════════
+ TP6 · prueba: health
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-21T01:48:46.959Z   equipo: win32 10.0.19045   node v24.22.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+
+▶ GET /health de cada microservicio
+  $ curl -s -X GET http://localhost:3001/health
+  ← 200 {"service":"usuarios-service","status":"ok"}
+  ✔ usuarios-service responde 200 {service, status:"ok"}
+  $ curl -s -X GET http://localhost:3002/health
+  ← 200 {"service":"eventos-service","status":"ok"}
+  ✔ eventos-service responde 200 {service, status:"ok"}
+  $ curl -s -X GET http://localhost:3003/health
+  ← 200 {"service":"entradas-service","status":"ok"}
+  ✔ entradas-service responde 200 {service, status:"ok"}
+
+▶ eventos-service además informa el estado de Mongo y Redis (/ready)
+  $ curl -s -X GET http://localhost:3002/ready
+  ← 200 {"service":"eventos-service","status":"ready","dependencies":{"mongodb":"up","redis":"up"}}
+  ✔ /ready: mongodb up y redis up
+
+▶ Healthchecks de Docker Compose
+  $ docker compose ps
+    NAME                                      IMAGE                                                                     COMMAND                  SERVICE            CREATED              STATUS                        PORTS
+    tp6-eventos-entradas-entradas-db-1        mongo:7                                                                   "docker-entrypoint.s…"   entradas-db        About a minute ago   Up About a minute (healthy)   27017/tcp
+    tp6-eventos-entradas-entradas-service-1   sha256:4bb5196f926d56618c8877dabd7e767a770b42803f5088466eebb672684bdf3e   "docker-entrypoint.s…"   entradas-service   About a minute ago   Up About a minute (healthy)   0.0.0.0:3003->3000/tcp, [::]:3003->3000/tcp
+    tp6-eventos-entradas-eventos-db-1         mongo:7                                                                   "docker-entrypoint.s…"   eventos-db         About a minute ago   Up About a minute (healthy)   27017/tcp
+    tp6-eventos-entradas-eventos-service-1    sha256:dcc58f17011ce3fd4e607cc472671735365cdce94c9b0ba4472713810a28c528   "docker-entrypoint.s…"   eventos-service    About a minute ago   Up About a minute (healthy)   0.0.0.0:3002->3000/tcp, [::]:3002->3000/tcp
+    tp6-eventos-entradas-redis-1              redis:7-alpine                                                            "docker-entrypoint.s…"   redis              About a minute ago   Up About a minute (healthy)   6379/tcp
+    tp6-eventos-entradas-usuarios-db-1        mongo:7                                                                   "docker-entrypoint.s…"   usuarios-db        About a minute ago   Up About a minute (healthy)   27017/tcp
+    tp6-eventos-entradas-usuarios-service-1   sha256:d049fb94d9865ea09ad4e83b4b560b41652d78bcb09733225dd9584a4cc995ca   "docker-entrypoint.s…"   usuarios-service   About a minute ago   Up About a minute (healthy)   0.0.0.0:3001->3000/tcp, [::]:3001->3000/tcp
+  ✔ entradas-db: running (healthy)
+  ✔ entradas-service: running (healthy)
+  ✔ eventos-db: running (healthy)
+  ✔ eventos-service: running (healthy)
+  ✔ redis: running (healthy)
+  ✔ usuarios-db: running (healthy)
+  ✔ usuarios-service: running (healthy)
+
+RESULTADO: health → OK (11 verificaciones)

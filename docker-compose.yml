@@ -1,6 +1,17 @@
 # TP6 - Solucion integrada: 3 microservicios + 3 MongoDB (una por servicio) + Redis.
-# Levantar:  docker compose up --build
-# Los valores se toman del archivo .env de la raiz (ver .env.example); todos tienen default.
+#
+#   Levantar:  docker compose up --build        (o -d para dejarlo en segundo plano)
+#   Estado:    docker compose ps
+#   Logs:      docker compose logs -f <servicio>
+#   Detener:   docker compose down              (conserva los datos)
+#              docker compose down -v           (BORRA los volumenes: reinicia los datos)
+#
+# Los valores se toman del archivo .env de la raiz (ver .env.example). Todos tienen default,
+# asi que tambien funciona sin .env.
+
+# Name fijo: los volumenes y redes quedan como tp6-eventos-entradas_<nombre>
+# sin depender del nombre de la carpeta donde cada integrante clono el repo.
+name: tp6-eventos-entradas
 
 x-healthcheck-node: &node-healthcheck
   # Alpine no trae curl: se usa el fetch nativo de Node que ya esta en la imagen.
@@ -25,7 +36,7 @@ services:
     volumes:
       - usuarios-data:/data/db
     healthcheck: *mongo-healthcheck
-    networks: [tp6-net]
+    networks: [usuarios-net]          # solo usuarios-service puede alcanzarla
 
   usuarios-service:
     build: ./services/usuarios-service
@@ -42,7 +53,7 @@ services:
       usuarios-db:
         condition: service_healthy
     healthcheck: *node-healthcheck
-    networks: [tp6-net]
+    networks: [tp6-net, usuarios-net]
 
   # ----------------------------------------------------------------- eventos
   eventos-db:
@@ -51,8 +62,10 @@ services:
     volumes:
       - eventos-data:/data/db
     healthcheck: *mongo-healthcheck
-    networks: [tp6-net]
+    networks: [eventos-net]           # solo eventos-service puede alcanzarla
 
+  # Redis: lo usa unicamente eventos-service (lock del aforo). No lleva volumen a proposito:
+  # los locks tienen TTL y no hay nada que conservar entre reinicios.
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -61,7 +74,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    networks: [tp6-net]
+    networks: [eventos-net]
 
   eventos-service:
     build: ./services/eventos-service
@@ -82,7 +95,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck: *node-healthcheck
-    networks: [tp6-net]
+    networks: [tp6-net, eventos-net]
 
   # ---------------------------------------------------------------- entradas
   entradas-db:
@@ -91,7 +104,7 @@ services:
     volumes:
       - entradas-data:/data/db
     healthcheck: *mongo-healthcheck
-    networks: [tp6-net]
+    networks: [entradas-net]          # solo entradas-service puede alcanzarla
 
   entradas-service:
     build: ./services/entradas-service
@@ -115,10 +128,18 @@ services:
       entradas-db:
         condition: service_healthy
     healthcheck: *node-healthcheck
-    networks: [tp6-net]
+    networks: [tp6-net, entradas-net]
 
+# Redes:
+#   tp6-net       comunicacion HTTP entre microservicios (nombre DNS = nombre del servicio).
+#   *-net         una red privada por servicio con SU base (y Redis en eventos-net).
+# Asi la propiedad de los datos se cumple tambien a nivel de red: un servicio no puede ni
+# resolver el nombre de la base de otro (ej. entradas-service no ve a usuarios-db).
 networks:
   tp6-net:
+  usuarios-net:
+  eventos-net:
+  entradas-net:
 
 volumes:
   usuarios-data:

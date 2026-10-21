@@ -1,0 +1,58 @@
+
+════════════════════════════════════════════════════════════════
+ TP6 · prueba: inicio
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-21T01:48:40.194Z   equipo: win32 10.0.19045   node v24.22.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+
+▶ Validar el archivo Compose
+  $ docker compose config --quiet
+  ✔ docker compose config es válido
+
+▶ Construir e iniciar toda la solución
+  $ docker compose up --build -d
+    … (141 líneas anteriores omitidas)
+     Container tp6-eventos-entradas-eventos-db-1 Running 
+     Container tp6-eventos-entradas-redis-1 Running 
+     Container tp6-eventos-entradas-eventos-service-1 Running 
+     Container tp6-eventos-entradas-entradas-db-1 Running 
+     Container tp6-eventos-entradas-entradas-service-1 Running 
+     Container tp6-eventos-entradas-usuarios-db-1 Running 
+     Container tp6-eventos-entradas-entradas-db-1 Waiting 
+     Container tp6-eventos-entradas-usuarios-db-1 Waiting 
+     Container tp6-eventos-entradas-eventos-db-1 Waiting 
+     Container tp6-eventos-entradas-redis-1 Waiting 
+     Container tp6-eventos-entradas-entradas-db-1 Healthy 
+     Container tp6-eventos-entradas-eventos-db-1 Healthy 
+     Container tp6-eventos-entradas-usuarios-db-1 Healthy 
+     Container tp6-eventos-entradas-redis-1 Healthy
+  ✔ docker compose up --build -d termina sin errores
+
+▶ Esperar a que los servicios estén disponibles
+  … esperando: usuarios-service listo (con su base conectada)
+  … listo (0 s)
+  … esperando: eventos-service listo (con su base conectada)
+  … listo (0 s)
+  … esperando: entradas-service listo (con su base conectada)
+  … listo (0 s)
+  ✔ los 3 servicios responden y tienen su base conectada
+
+▶ Estado de los contenedores
+  $ docker compose ps
+    NAME                                      IMAGE                                                                     COMMAND                  SERVICE            CREATED              STATUS                        PORTS
+    tp6-eventos-entradas-entradas-db-1        mongo:7                                                                   "docker-entrypoint.s…"   entradas-db        About a minute ago   Up About a minute (healthy)   27017/tcp
+    tp6-eventos-entradas-entradas-service-1   sha256:4bb5196f926d56618c8877dabd7e767a770b42803f5088466eebb672684bdf3e   "docker-entrypoint.s…"   entradas-service   About a minute ago   Up About a minute (healthy)   0.0.0.0:3003->3000/tcp, [::]:3003->3000/tcp
+    tp6-eventos-entradas-eventos-db-1         mongo:7                                                                   "docker-entrypoint.s…"   eventos-db         About a minute ago   Up About a minute (healthy)   27017/tcp
+    tp6-eventos-entradas-eventos-service-1    sha256:dcc58f17011ce3fd4e607cc472671735365cdce94c9b0ba4472713810a28c528   "docker-entrypoint.s…"   eventos-service    About a minute ago   Up About a minute (healthy)   0.0.0.0:3002->3000/tcp, [::]:3002->3000/tcp
+    tp6-eventos-entradas-redis-1              redis:7-alpine                                                            "docker-entrypoint.s…"   redis              About a minute ago   Up About a minute (healthy)   6379/tcp
+    tp6-eventos-entradas-usuarios-db-1        mongo:7                                                                   "docker-entrypoint.s…"   usuarios-db        About a minute ago   Up About a minute (healthy)   27017/tcp
+    tp6-eventos-entradas-usuarios-service-1   sha256:d049fb94d9865ea09ad4e83b4b560b41652d78bcb09733225dd9584a4cc995ca   "docker-entrypoint.s…"   usuarios-service   About a minute ago   Up About a minute (healthy)   0.0.0.0:3001->3000/tcp, [::]:3001->3000/tcp
+  ✔ usuarios-db: running / healthy
+  ✔ usuarios-service: running / healthy
+  ✔ eventos-db: running / healthy
+  ✔ redis: running / healthy
+  ✔ eventos-service: running / healthy
+  ✔ entradas-db: running / healthy
+  ✔ entradas-service: running / healthy
+
+RESULTADO: inicio → OK (10 verificaciones)

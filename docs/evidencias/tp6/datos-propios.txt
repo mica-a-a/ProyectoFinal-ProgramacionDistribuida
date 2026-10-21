@@ -1,0 +1,47 @@
+
+════════════════════════════════════════════════════════════════
+ TP6 · prueba: datos-propios
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-21T01:48:49.745Z   equipo: win32 10.0.19045   node v24.22.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+
+▶ Cada servicio tiene su propia base (según docker compose config)
+  ✔ se pudo leer la configuración de Compose
+  usuarios-service  MONGODB_URI=mongodb://usuarios-db:27017/usuarios
+  ✔ usuarios-service usa únicamente usuarios-db
+  eventos-service  MONGODB_URI=mongodb://eventos-db:27017/eventos
+  ✔ eventos-service usa únicamente eventos-db
+  entradas-service  MONGODB_URI=mongodb://entradas-db:27017/entradas
+  ✔ entradas-service usa únicamente entradas-db
+  ✔ solo los 3 microservicios publican puertos (bases y Redis no)
+
+▶ Colecciones de cada base (cada una contiene solo datos de su servicio)
+  $ docker compose exec -T usuarios-db mongosh --quiet usuarios --eval JSON.stringify(db.getCollectionNames())
+    ["usuarios"]
+  ✔ usuarios-db tiene colecciones propias: usuarios
+  $ docker compose exec -T eventos-db mongosh --quiet eventos --eval JSON.stringify(db.getCollectionNames())
+    ["movimientoaforos","eventos"]
+  ✔ eventos-db tiene colecciones propias: movimientoaforos, eventos
+  $ docker compose exec -T entradas-db mongosh --quiet entradas --eval JSON.stringify(db.getCollectionNames())
+    ["ordens","tickets"]
+  ✔ entradas-db tiene colecciones propias: ordens, tickets
+  ✔ ninguna colección aparece en más de una base
+
+▶ Aislamiento de red: un servicio no puede ni resolver la base de otro
+  $ docker compose exec -T entradas-service node -e require("dns").lookup(process.argv[1],(e,a)=>{console.log(e?"ERROR "+e.code:"RESUELVE "+a);process.exit(0)}) usuarios-db
+    ERROR ENOTFOUND
+  ✔ entradas-service NO resuelve usuarios-db
+  $ docker compose exec -T entradas-service node -e require("dns").lookup(process.argv[1],(e,a)=>{console.log(e?"ERROR "+e.code:"RESUELVE "+a);process.exit(0)}) eventos-db
+    ERROR ENOTFOUND
+  ✔ entradas-service NO resuelve eventos-db
+  $ docker compose exec -T usuarios-service node -e require("dns").lookup(process.argv[1],(e,a)=>{console.log(e?"ERROR "+e.code:"RESUELVE "+a);process.exit(0)}) entradas-db
+    ERROR ENOTFOUND
+  ✔ usuarios-service NO resuelve entradas-db
+  $ docker compose exec -T eventos-service node -e require("dns").lookup(process.argv[1],(e,a)=>{console.log(e?"ERROR "+e.code:"RESUELVE "+a);process.exit(0)}) usuarios-db
+    ERROR ENOTFOUND
+  ✔ eventos-service NO resuelve usuarios-db
+  $ docker compose exec -T entradas-service node -e require("dns").lookup(process.argv[1],(e,a)=>{console.log(e?"ERROR "+e.code:"RESUELVE "+a);process.exit(0)}) usuarios-service
+    RESUELVE 172.20.0.2
+  ✔ (control) entradas-service SÍ resuelve usuarios-service (comunicación HTTP permitida)
+
+RESULTADO: datos-propios → OK (14 verificaciones)

@@ -1,0 +1,38 @@
+
+════════════════════════════════════════════════════════════════
+ TP6 · prueba: logs
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-21T01:49:34.871Z   equipo: win32 10.0.19045   node v24.22.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+
+▶ docker compose logs de cada microservicio (JSON por stdout, con el nombre del servicio)
+  $ docker compose logs --no-color --no-log-prefix --tail 6 usuarios-service
+    {"level":"info","message":"request","method":"GET","ms":0,"path":"/health","service":"usuarios-service","status":200,"timestamp":"2026-10-21T01:49:29.793Z"}
+    {"level":"info","message":"usuario creado","operacion":"POST /usuarios","service":"usuarios-service","timestamp":"2026-10-21T01:49:29.806Z","usuarioId":"6ad81a29ab63925dbd5ff2b0"}
+    {"level":"info","message":"request","method":"POST","ms":6,"path":"/usuarios","service":"usuarios-service","status":201,"timestamp":"2026-10-21T01:49:29.807Z"}
+    {"level":"info","message":"request","method":"GET","ms":2,"path":"/usuarios/6ad81a29ab63925dbd5ff2b0","service":"usuarios-service","status":200,"timestamp":"2026-10-21T01:49:30.366Z"}
+    {"level":"info","message":"request","method":"GET","ms":2,"path":"/usuarios/6ad81a29ab63925dbd5ff2b0","service":"usuarios-service","status":200,"timestamp":"2026-10-21T01:49:34.855Z"}
+    {"level":"info","message":"request","method":"GET","ms":0,"path":"/health","service":"usuarios-service","status":200,"timestamp":"2026-10-21T01:49:35.000Z"}
+  ✔ usuarios-service: logs con service, level y message
+  $ docker compose logs --no-color --no-log-prefix --tail 6 eventos-service
+    {"level":"info","message":"request","method":"GET","ms":0,"path":"/health","service":"eventos-service","status":200,"timestamp":"2026-10-21T01:49:34.413Z"}
+    {"level":"info","message":"request","method":"GET","ms":1,"path":"/ready","service":"eventos-service","status":200,"timestamp":"2026-10-21T01:49:34.843Z"}
+    {"level":"info","message":"request","method":"GET","ms":1,"path":"/eventos/6ad81a29305399aaf97d7601","service":"eventos-service","status":200,"timestamp":"2026-10-21T01:49:34.858Z"}
+    {"cantidad":2,"disponibles":8,"eventoId":"6ad81a29305399aaf97d7601","level":"info","message":"aforo reservado","referencia":"6ad81a2eabd0bb6aa0ada6a9","service":"eventos-service","timestamp":"2026-10-21T01:49:34.864Z"}
+    {"level":"info","message":"request","method":"POST","ms":4,"path":"/eventos/6ad81a29305399aaf97d7601/reservar-aforo","service":"eventos-service","status":200,"timestamp":"2026-10-21T01:49:34.865Z"}
+    {"level":"info","message":"request","method":"GET","ms":0,"path":"/health","service":"eventos-service","status":200,"timestamp":"2026-10-21T01:49:35.001Z"}
+  ✔ eventos-service: logs con service, level y message
+  $ docker compose logs --no-color --no-log-prefix --tail 6 entradas-service
+    {"level":"info","message":"request","method":"GET","ms":3,"path":"/ordenes/6ad81a2aabd0bb6aa0ada6a8","service":"entradas-service","status":200,"timestamp":"2026-10-21T01:49:30.380Z"}
+    {"level":"info","message":"request","method":"GET","ms":3,"path":"/ordenes/6ad81a2aabd0bb6aa0ada6a8","service":"entradas-service","status":200,"timestamp":"2026-10-21T01:49:34.848Z"}
+    {"cantidad":2,"eventoId":"6ad81a29305399aaf97d7601","level":"info","message":"orden creada","operacion":"crearOrden","ordenId":"6ad81a2eabd0bb6aa0ada6a9","service":"entradas-service","timestamp":"2026-10-21T01:49:34.851Z","usuarioId":"6ad81a29ab63925dbd5ff2b0"}
+    {"level":"info","message":"orden confirmada","operacion":"crearOrden","ordenId":"6ad81a2eabd0bb6aa0ada6a9","service":"entradas-service","tickets":2,"timestamp":"2026-10-21T01:49:34.867Z"}
+    {"level":"info","message":"request","method":"POST","ms":18,"path":"/ordenes","service":"entradas-service","status":201,"timestamp":"2026-10-21T01:49:34.868Z"}
+    {"level":"info","message":"request","method":"GET","ms":0,"path":"/health","service":"entradas-service","status":200,"timestamp":"2026-10-21T01:49:35.002Z"}
+  ✔ entradas-service: logs con service, level y message
+
+▶ Eventos relevantes disponibles en los logs
+  ✔ entradas-service registró órdenes ("orden creada"/"orden confirmada")
+  Comandos útiles:  docker compose logs <servicio>   |   docker compose logs -f <servicio>
+
+RESULTADO: logs → OK (4 verificaciones)

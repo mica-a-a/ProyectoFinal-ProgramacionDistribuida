@@ -12,6 +12,8 @@ function mensajeRemoto(err) {
   return err.body && typeof err.body === 'object' ? err.body.message : undefined;
 }
 
+const codigoRemoto = (err) => (err.body && typeof err.body === 'object' ? err.body.code : undefined);
+
 function toAppError(err, overrides = {}) {
   if (!(err instanceof RemoteServiceError)) return err;
   const o = overrides[err.kind] || {};
@@ -19,7 +21,8 @@ function toAppError(err, overrides = {}) {
     case 'NOT_FOUND':
       return new AppError(404, o.message || mensajeRemoto(err) || `Recurso no encontrado en ${err.service}`, o.code || 'RECURSO_NO_ENCONTRADO');
     case 'CONFLICT':
-      return new AppError(409, o.message || mensajeRemoto(err) || 'Conflicto informado por el servicio remoto', o.code || 'CONFLICTO_REMOTO');
+      // Se conserva el código que informó el dueño de la regla (SIN_AFORO, EVENTO_NO_VENDIBLE, ...).
+      return new AppError(409, o.message || mensajeRemoto(err) || 'Conflicto informado por el servicio remoto', codigoRemoto(err) || o.code || 'CONFLICTO_REMOTO');
     case 'LOCKED':
       return new AppError(423, o.message || 'El recurso está ocupado, intentá nuevamente', o.code || 'RECURSO_OCUPADO');
     case 'UNAVAILABLE':

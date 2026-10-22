@@ -2,8 +2,8 @@
 ════════════════════════════════════════════════════════════════
  TP6 · prueba: fallo-db
 ════════════════════════════════════════════════════════════════
- fecha: 2026-10-21T01:49:18.119Z   equipo: win32 10.0.19045   node v24.22.0
- Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+ fecha: 2026-10-22T20:55:28.382Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
 
 ▶ 1) Con la base funcionando
   ✔ GET /usuarios → 200

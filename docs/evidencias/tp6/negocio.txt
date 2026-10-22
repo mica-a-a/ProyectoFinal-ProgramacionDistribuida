@@ -2,84 +2,84 @@
 ════════════════════════════════════════════════════════════════
  TP6 · prueba: negocio
 ════════════════════════════════════════════════════════════════
- fecha: 2026-10-21T01:48:49.250Z   equipo: win32 10.0.19045   node v24.22.0
- Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+ fecha: 2026-10-22T20:55:13.694Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
 
 ▶ usuarios-service: CRUD
-  $ curl -s -X POST http://localhost:3001/usuarios -H "content-type: application/json" -d '{"nombre":"Prueba","apellido":"Tp6mvhgdxv31","email":"tp6.mvhgdxv31@example.com","dni":"69781943","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123"}'
-  ← 201 {"nombre":"Prueba","apellido":"Tp6mvhgdxv31","email":"tp6.mvhgdxv31@example.com","dni":"69781943","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123","activo":true,"createdAt":"2026-10-21T01:48:49.402Z","updatedAt":"2026-…
+  $ curl -s -X POST http://localhost:3001/usuarios -H "content-type: application/json" -d '{"nombre":"Prueba","apellido":"Tp6mvk0s6zn1","email":"tp6.mvk0s6zn1@example.com","dni":"71057240","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123"}'
+  ← 201 {"nombre":"Prueba","apellido":"Tp6mvk0s6zn1","email":"tp6.mvk0s6zn1@example.com","dni":"71057240","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123","activo":true,"createdAt":"2026-10-22T20:55:13.844Z","updatedAt":"2026-…
   ✔ POST /usuarios → 201, queda activo=true
-  $ curl -s -X GET http://localhost:3001/usuarios/6ad81a019591b17db196ddb7
-  ← 200 {"nombre":"Prueba","apellido":"Tp6mvhgdxv31","email":"tp6.mvhgdxv31@example.com","dni":"69781943","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123","activo":true,"createdAt":"2026-10-21T01:48:49.402Z","updatedAt":"2026-…
+  $ curl -s -X GET http://localhost:3001/usuarios/6ada7831946417f5dd672522
+  ← 200 {"nombre":"Prueba","apellido":"Tp6mvk0s6zn1","email":"tp6.mvk0s6zn1@example.com","dni":"71057240","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123","activo":true,"createdAt":"2026-10-22T20:55:13.844Z","updatedAt":"2026-…
   ✔ GET /usuarios/:id → 200
-  $ curl -s -X PUT http://localhost:3001/usuarios/6ad81a019591b17db196ddb7 -H "content-type: application/json" -d '{"nombre":"Prueba","apellido":"Tp6mvhgdxv31","email":"tp6.mvhgdxv31@example.com","dni":"69781943","fechaNacimiento":"1995-04-12","direccion":"Calle Nueva 456"}'
-  ← 200 {"nombre":"Prueba","apellido":"Tp6mvhgdxv31","email":"tp6.mvhgdxv31@example.com","dni":"69781943","fechaNacimiento":"1995-04-12","direccion":"Calle Nueva 456","activo":true,"createdAt":"2026-10-21T01:48:49.402Z","updatedAt":"2026-…
+  $ curl -s -X PUT http://localhost:3001/usuarios/6ada7831946417f5dd672522 -H "content-type: application/json" -d '{"nombre":"Prueba","apellido":"Tp6mvk0s6zn1","email":"tp6.mvk0s6zn1@example.com","dni":"71057240","fechaNacimiento":"1995-04-12","direccion":"Calle Nueva 456"}'
+  ← 200 {"nombre":"Prueba","apellido":"Tp6mvk0s6zn1","email":"tp6.mvk0s6zn1@example.com","dni":"71057240","fechaNacimiento":"1995-04-12","direccion":"Calle Nueva 456","activo":true,"createdAt":"2026-10-22T20:55:13.844Z","updatedAt":"2026-…
   ✔ PUT /usuarios/:id → 200 con el dato modificado
-  $ curl -s -X POST http://localhost:3001/usuarios -H "content-type: application/json" -d '{"nombre":"Prueba","apellido":"Tp6mvhgdxv31","email":"tp6.mvhgdxv31@example.com","dni":"69781943","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123"}'
+  $ curl -s -X POST http://localhost:3001/usuarios -H "content-type: application/json" -d '{"nombre":"Prueba","apellido":"Tp6mvk0s6zn1","email":"tp6.mvk0s6zn1@example.com","dni":"71057240","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123"}'
   ← 409 {"message":"El email ya está registrado","code":"EMAIL_DUPLICADO"}
   ✔ POST con email repetido → 409
   $ curl -s -X POST http://localhost:3001/usuarios -H "content-type: application/json" -d '{"nombre":"A"}'
   ← 400 {"message":"Error de validación","code":"VALIDACION","errors":["El nombre debe tener al menos 2 caracteres","El apellido es obligatorio","El email es obligatorio","El DNI es obligatorio","La fecha de nacimiento es obligatoria"]}
   ✔ POST con datos inválidos → 400 con lista de errores
   ✔ GET /usuarios lista al usuario creado
-  $ curl -s -X DELETE http://localhost:3001/usuarios/6ad81a019591b17db196ddb7
-  ← 200 {"nombre":"Prueba","apellido":"Tp6mvhgdxv31","email":"tp6.mvhgdxv31@example.com","dni":"69781943","fechaNacimiento":"1995-04-12","direccion":"Calle Nueva 456","activo":false,"createdAt":"2026-10-21T01:48:49.402Z","updatedAt":"2026…
+  $ curl -s -X DELETE http://localhost:3001/usuarios/6ada7831946417f5dd672522
+  ← 200 {"nombre":"Prueba","apellido":"Tp6mvk0s6zn1","email":"tp6.mvk0s6zn1@example.com","dni":"71057240","fechaNacimiento":"1995-04-12","direccion":"Calle Nueva 456","activo":false,"createdAt":"2026-10-22T20:55:13.844Z","updatedAt":"2026…
   ✔ DELETE /usuarios/:id → baja lógica (200, activo=false)
   ✔ el usuario dado de baja sigue existiendo (GET → 200, activo=false)
 
 ▶ eventos-service: CRUD
-  $ curl -s -X POST http://localhost:3002/eventos -H "content-type: application/json" -d '{"nombre":"Evento TP6 mvhgdxv32","fecha":"2026-11-20T01:48:49.452Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10}'
-  ← 201 {"id":"6ad81a01305399aaf97d75c3","nombre":"Evento TP6 mvhgdxv32","fecha":"2026-11-20T01:48:49.452Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-21T01:48:49.469Z","upd…
+  $ curl -s -X POST http://localhost:3002/eventos -H "content-type: application/json" -d '{"nombre":"Evento TP6 mvk0s6zn2","fecha":"2026-11-21T20:55:13.906Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10}'
+  ← 201 {"id":"6ada783126c63499259a3ffd","nombre":"Evento TP6 mvk0s6zn2","fecha":"2026-11-21T20:55:13.906Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-22T20:55:13.931Z","upd…
   ✔ POST /eventos → 201 PUBLICADO
-  $ curl -s -X GET http://localhost:3002/eventos/6ad81a01305399aaf97d75c3
-  ← 200 {"id":"6ad81a01305399aaf97d75c3","nombre":"Evento TP6 mvhgdxv32","fecha":"2026-11-20T01:48:49.452Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-21T01:48:49.469Z","upd…
+  $ curl -s -X GET http://localhost:3002/eventos/6ada783126c63499259a3ffd
+  ← 200 {"id":"6ada783126c63499259a3ffd","nombre":"Evento TP6 mvk0s6zn2","fecha":"2026-11-21T20:55:13.906Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-22T20:55:13.931Z","upd…
   ✔ GET /eventos/:id → 200
-  $ curl -s -X PUT http://localhost:3002/eventos/6ad81a01305399aaf97d75c3 -H "content-type: application/json" -d '{"lugar":"Sala B2"}'
-  ← 200 {"id":"6ad81a01305399aaf97d75c3","nombre":"Evento TP6 mvhgdxv32","fecha":"2026-11-20T01:48:49.452Z","lugar":"Sala B2","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-21T01:48:49.469Z","upda…
+  $ curl -s -X PUT http://localhost:3002/eventos/6ada783126c63499259a3ffd -H "content-type: application/json" -d '{"lugar":"Sala B2"}'
+  ← 200 {"id":"6ada783126c63499259a3ffd","nombre":"Evento TP6 mvk0s6zn2","fecha":"2026-11-21T20:55:13.906Z","lugar":"Sala B2","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-22T20:55:13.931Z","upda…
   ✔ PUT /eventos/:id → 200 con el dato modificado
-  $ curl -s -X PATCH http://localhost:3002/eventos/6ad81a01305399aaf97d75c3/cancelar
-  ← 200 {"id":"6ad81a01305399aaf97d75c3","nombre":"Evento TP6 mvhgdxv32","fecha":"2026-11-20T01:48:49.452Z","lugar":"Sala B2","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"CANCELADO","createdAt":"2026-10-21T01:48:49.469Z","upda…
+  $ curl -s -X PATCH http://localhost:3002/eventos/6ada783126c63499259a3ffd/cancelar
+  ← 200 {"id":"6ada783126c63499259a3ffd","nombre":"Evento TP6 mvk0s6zn2","fecha":"2026-11-21T20:55:13.906Z","lugar":"Sala B2","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"CANCELADO","createdAt":"2026-10-22T20:55:13.931Z","upda…
   ✔ PATCH /eventos/:id/cancelar → CANCELADO
 
 ▶ Compra de entradas: comunicación entradas → usuarios y entradas → eventos (HTTP)
-  comprador=6ad81a019591b17db196ddc0  evento=6ad81a01305399aaf97d75ca (aforo 5)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a019591b17db196ddc0","eventoId":"6ad81a01305399aaf97d75ca","cantidad":2}'
-  ← 201 {"orden":{"usuarioId":"6ad81a019591b17db196ddc0","eventoId":"6ad81a01305399aaf97d75ca","cantidad":2,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:48:49.529Z","fechaActualizacion":"…
+  comprador=6ada7831946417f5dd67252b  evento=6ada783226c63499259a4004 (aforo 5)
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada7831946417f5dd67252b","eventoId":"6ada783226c63499259a4004","cantidad":2}'
+  ← 201 {"orden":{"usuarioId":"6ada7831946417f5dd67252b","eventoId":"6ada783226c63499259a4004","cantidad":2,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:14.033Z","fechaActualizacion":"…
   ✔ POST /ordenes (2 entradas) → 201 CONFIRMADA con 2 tickets
   ✔ el precio se congeló desde eventos-service (precioUnitario = 2500)
-  $ curl -s -X GET http://localhost:3002/eventos/6ad81a01305399aaf97d75ca
-  ← 200 {"id":"6ad81a01305399aaf97d75ca","nombre":"Evento TP6 mvhgdxv35","fecha":"2026-11-20T01:48:49.511Z","lugar":"Sala TP6","precio":2500,"aforoTotal":5,"disponibles":3,"estado":"PUBLICADO","createdAt":"2026-10-21T01:48:49.515Z","updat…
+  $ curl -s -X GET http://localhost:3002/eventos/6ada783226c63499259a4004
+  ← 200 {"id":"6ada783226c63499259a4004","nombre":"Evento TP6 mvk0s6zn5","fecha":"2026-11-21T20:55:13.998Z","lugar":"Sala TP6","precio":2500,"aforoTotal":5,"disponibles":3,"estado":"PUBLICADO","createdAt":"2026-10-22T20:55:14.004Z","updat…
   ✔ eventos-service descontó el aforo: disponibles = 3 (lo pidió entradas por HTTP)
   ✔ GET /ordenes/:id → 200 con la orden y sus tickets
   ✔ GET /entradas?usuarioId= lista las 2 entradas
-  $ curl -s -X POST http://localhost:3003/entradas/validar -H "content-type: application/json" -d '{"codigo":"2E9A242D8C"}'
-  ← 200 {"mensaje":"Ingreso permitido","ticket":{"codigo":"2E9A242D8C","ordenId":"6ad81a01abd0bb6aa0ada694","estado":"USADO","usadoEn":"2026-10-21T01:48:49.618Z","fechaCreacion":"2026-10-21T01:48:49.583Z","fechaActualizacion":"2026-10-21T…
+  $ curl -s -X POST http://localhost:3003/entradas/validar -H "content-type: application/json" -d '{"codigo":"D705468966"}'
+  ← 200 {"mensaje":"Ingreso permitido","ticket":{"codigo":"D705468966","ordenId":"6ada78321e43ebd15bc058f0","estado":"USADO","usadoEn":"2026-10-22T20:55:14.184Z","fechaCreacion":"2026-10-22T20:55:14.130Z","fechaActualizacion":"2026-10-22T…
   ✔ POST /entradas/validar → 200 (ingreso permitido)
-  $ curl -s -X POST http://localhost:3003/entradas/validar -H "content-type: application/json" -d '{"codigo":"2E9A242D8C"}'
+  $ curl -s -X POST http://localhost:3003/entradas/validar -H "content-type: application/json" -d '{"codigo":"D705468966"}'
   ← 409 {"message":"El ticket ya no es válido (estado: USADO)","code":"TICKET_NO_VALIDO"}
   ✔ validar el mismo ticket otra vez → 409 (uso único)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a019591b17db196ddc0","eventoId":"6ad81a01305399aaf97d75ca","cantidad":1}'
-  ← 201 {"orden":{"usuarioId":"6ad81a019591b17db196ddc0","eventoId":"6ad81a01305399aaf97d75ca","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:48:49.635Z","fechaActualizacion":"…
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada7831946417f5dd67252b","eventoId":"6ada783226c63499259a4004","cantidad":1}'
+  ← 201 {"orden":{"usuarioId":"6ada7831946417f5dd67252b","eventoId":"6ada783226c63499259a4004","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:14.211Z","fechaActualizacion":"…
   ✔ segunda compra (1 entrada) → 201
-  $ curl -s -X DELETE http://localhost:3003/ordenes/6ad81a01abd0bb6aa0ada697
-  ← 200 {"orden":{"usuarioId":"6ad81a019591b17db196ddc0","eventoId":"6ad81a01305399aaf97d75ca","cantidad":1,"precioUnitario":2500,"estado":"CANCELADA","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:48:49.635Z","fechaActualizacion":"2…
+  $ curl -s -X DELETE http://localhost:3003/ordenes/6ada78321e43ebd15bc058f3
+  ← 200 {"orden":{"usuarioId":"6ada7831946417f5dd67252b","eventoId":"6ada783226c63499259a4004","cantidad":1,"precioUnitario":2500,"estado":"CANCELADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:14.211Z","fechaActualizacion":"2…
   ✔ DELETE /ordenes/:id → 200 CANCELADA
   ✔ el aforo se devolvió: disponibles = 3 (liberar-aforo)
 
 ▶ Reglas de cada servicio (quién decide qué)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a019591b17db196ddc2","eventoId":"6ad81a01305399aaf97d75ca","cantidad":4}'
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada7831946417f5dd67252d","eventoId":"6ada783226c63499259a4004","cantidad":4}'
   ← 409 {"message":"No hay lugares suficientes (disponibles: 3)","code":"SIN_AFORO"}
   ✔ pedir más lugares que el aforo → 409 SIN_AFORO (decide eventos)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a019591b17db196ddc0","eventoId":"6ad81a01305399aaf97d75ca","cantidad":3}'
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada7831946417f5dd67252b","eventoId":"6ada783226c63499259a4004","cantidad":3}'
   ← 409 {"message":"Máximo 4 entradas por usuario y evento (ya tiene 2)","code":"MAXIMO_ENTRADAS_EXCEDIDO"}
   ✔ superar el máximo por usuario → 409 (decide entradas)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"64b0000000000000000000ff","eventoId":"6ad81a01305399aaf97d75ca","cantidad":1}'
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"64b0000000000000000000ff","eventoId":"6ada783226c63499259a4004","cantidad":1}'
   ← 404 {"message":"Usuario no encontrado","code":"USUARIO_NO_ENCONTRADO"}
   ✔ usuario inexistente → 404 USUARIO_NO_ENCONTRADO (decide usuarios)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"64b000000000000000000004","eventoId":"6ad81a01305399aaf97d75ca","cantidad":1}'
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"64b000000000000000000004","eventoId":"6ada783226c63499259a4004","cantidad":1}'
   ← 409 {"message":"El usuario está inactivo","code":"USUARIO_INACTIVO"}
   ✔ usuario inactivo (Diego, del seed) → 409 USUARIO_INACTIVO (decide usuarios)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a019591b17db196ddc2","eventoId":"64b0000000000000000000ee","cantidad":1}'
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada7831946417f5dd67252d","eventoId":"64b0000000000000000000ee","cantidad":1}'
   ← 404 {"message":"Evento no encontrado","code":"EVENTO_NO_ENCONTRADO"}
   ✔ evento inexistente → 404 EVENTO_NO_ENCONTRADO (decide eventos)
 

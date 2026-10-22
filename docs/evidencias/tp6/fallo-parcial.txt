@@ -2,8 +2,8 @@
 ════════════════════════════════════════════════════════════════
  TP6 · prueba: fallo-parcial
 ════════════════════════════════════════════════════════════════
- fecha: 2026-10-21T01:49:29.662Z   equipo: win32 10.0.19045   node v24.22.0
- Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+ fecha: 2026-10-22T20:55:39.280Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
   Caso de uso: comprar entradas = entradas (crea orden) → eventos (reserva aforo) → entradas (emite tickets).
   Se simula una falla en la etapa intermedia (reservar aforo) deteniendo Redis.
   aforo antes: 10
@@ -15,17 +15,17 @@
   ✔ docker compose stop redis
   … esperando: eventos-service detecta que Redis no está (/ready → 503)
   … listo (0 s)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a29ab63925dbd5ff2b0","eventoId":"6ad81a29305399aaf97d7601","cantidad":2}'
-  ← 503 {"message":"eventos-service no respondió; la orden quedó PENDIENTE","code":"ORDEN_PENDIENTE","details":{"ordenId":"6ad81a2aabd0bb6aa0ada6a8","estado":"PENDIENTE"}}
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2}'
+  ← 503 {"message":"eventos-service no respondió; la orden quedó PENDIENTE","code":"ORDEN_PENDIENTE","details":{"ordenId":"6ada784b1e43ebd15bc05904","estado":"PENDIENTE"}}
   ✔ la compra responde 503 ORDEN_PENDIENTE
 
 ▶ 2) Estado en que quedó el sistema
-  $ curl -s -X GET http://localhost:3003/ordenes/6ad81a2aabd0bb6aa0ada6a8
-  ← 200 {"orden":{"usuarioId":"6ad81a29ab63925dbd5ff2b0","eventoId":"6ad81a29305399aaf97d7601","cantidad":2,"precioUnitario":2500,"estado":"PENDIENTE","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:49:30.361Z","fechaActualizacion":"2…
+  $ curl -s -X GET http://localhost:3003/ordenes/6ada784b1e43ebd15bc05904
+  ← 200 {"orden":{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2,"precioUnitario":2500,"estado":"PENDIENTE","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:39.819Z","fechaActualizacion":"2…
   ✔ la orden existe y quedó PENDIENTE (etapa 1 confirmada, etapa 3 nunca ocurrió)
   ✔ no se emitió ningún ticket
-  $ curl -s -X GET http://localhost:3002/eventos/6ad81a29305399aaf97d7601
-  ← 200 {"id":"6ad81a29305399aaf97d7601","nombre":"Evento TP6 mvhgdxv312","fecha":"2026-11-20T01:49:29.808Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-21T01:49:29.809Z","up…
+  $ curl -s -X GET http://localhost:3002/eventos/6ada784b26c63499259a403b
+  ← 200 {"id":"6ada784b26c63499259a403b","nombre":"Evento TP6 mvk0s6zn12","fecha":"2026-11-21T20:55:39.431Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-22T20:55:39.435Z","up…
   ✔ el aforo no cambió (disponibles = 10)
 
 ▶ 3) Recuperar la dependencia y ver qué pasa con la orden
@@ -34,12 +34,12 @@
      Container tp6-eventos-entradas-redis-1 Started
   ✔ docker compose start redis
   … esperando: eventos-service ready
-  … listo (4 s)
-  $ curl -s -X GET http://localhost:3003/ordenes/6ad81a2aabd0bb6aa0ada6a8
-  ← 200 {"orden":{"usuarioId":"6ad81a29ab63925dbd5ff2b0","eventoId":"6ad81a29305399aaf97d7601","cantidad":2,"precioUnitario":2500,"estado":"PENDIENTE","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:49:30.361Z","fechaActualizacion":"2…
+  … listo (2 s)
+  $ curl -s -X GET http://localhost:3003/ordenes/6ada784b1e43ebd15bc05904
+  ← 200 {"orden":{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2,"precioUnitario":2500,"estado":"PENDIENTE","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:39.819Z","fechaActualizacion":"2…
   ✔ la orden SIGUE PENDIENTE: no hay recuperación automática (queda como mejora futura)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a29ab63925dbd5ff2b0","eventoId":"6ad81a29305399aaf97d7601","cantidad":2}'
-  ← 201 {"orden":{"usuarioId":"6ad81a29ab63925dbd5ff2b0","eventoId":"6ad81a29305399aaf97d7601","cantidad":2,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:49:34.851Z","fechaActualizacion":"…
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2}'
+  ← 201 {"orden":{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:42.206Z","fechaActualizacion":"…
   ✔ una compra nueva funciona (el sistema no quedó bloqueado)
 
 ▶ Análisis (para el informe, punto 15.3)

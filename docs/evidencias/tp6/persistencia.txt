@@ -2,14 +2,14 @@
 ════════════════════════════════════════════════════════════════
  TP6 · prueba: persistencia
 ════════════════════════════════════════════════════════════════
- fecha: 2026-10-21T01:49:35.587Z   equipo: win32 10.0.19045   node v24.22.0
- Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+ fecha: 2026-10-22T20:55:42.955Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
 
 ▶ 1) Crear datos persistentes
-  $ curl -s -X POST http://localhost:3001/usuarios -H "content-type: application/json" -d '{"nombre":"Prueba","apellido":"Tp6mvhgdxv313","email":"tp6.mvhgdxv313@example.com","dni":"83018340","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123"}'
-  ← 201 {"nombre":"Prueba","apellido":"Tp6mvhgdxv313","email":"tp6.mvhgdxv313@example.com","dni":"83018340","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123","activo":true,"createdAt":"2026-10-21T01:49:35.719Z","updatedAt":"202…
-  $ curl -s -X POST http://localhost:3002/eventos -H "content-type: application/json" -d '{"nombre":"Evento TP6 mvhgdxv314","fecha":"2026-11-20T01:49:35.721Z","lugar":"Sala TP6","precio":2500,"aforoTotal":7}'
-  ← 201 {"id":"6ad81a2f305399aaf97d760b","nombre":"Evento TP6 mvhgdxv314","fecha":"2026-11-20T01:49:35.721Z","lugar":"Sala TP6","precio":2500,"aforoTotal":7,"disponibles":7,"estado":"PUBLICADO","createdAt":"2026-10-21T01:49:35.722Z","upda…
+  $ curl -s -X POST http://localhost:3001/usuarios -H "content-type: application/json" -d '{"nombre":"Prueba","apellido":"Tp6mvk0s6zn13","email":"tp6.mvk0s6zn13@example.com","dni":"58934451","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123"}'
+  ← 201 {"nombre":"Prueba","apellido":"Tp6mvk0s6zn13","email":"tp6.mvk0s6zn13@example.com","dni":"58934451","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123","activo":true,"createdAt":"2026-10-22T20:55:43.086Z","updatedAt":"202…
+  $ curl -s -X POST http://localhost:3002/eventos -H "content-type: application/json" -d '{"nombre":"Evento TP6 mvk0s6zn14","fecha":"2026-11-21T20:55:43.088Z","lugar":"Sala TP6","precio":2500,"aforoTotal":7}'
+  ← 201 {"id":"6ada784f26c63499259a4045","nombre":"Evento TP6 mvk0s6zn14","fecha":"2026-11-21T20:55:43.088Z","lugar":"Sala TP6","precio":2500,"aforoTotal":7,"disponibles":7,"estado":"PUBLICADO","createdAt":"2026-10-22T20:55:43.092Z","upda…
   ✔ usuario y evento creados
 
 ▶ 2) Detener y ELIMINAR los contenedores conservando los volúmenes
@@ -18,27 +18,27 @@
      Container tp6-eventos-entradas-entradas-db-1 Stopping 
      Container tp6-eventos-entradas-redis-1 Stopped 
      Container tp6-eventos-entradas-redis-1 Removing 
-     Container tp6-eventos-entradas-redis-1 Removed 
      Container tp6-eventos-entradas-eventos-db-1 Stopped 
      Container tp6-eventos-entradas-eventos-db-1 Removing 
-     Container tp6-eventos-entradas-eventos-db-1 Removed 
-     Container tp6-eventos-entradas-usuarios-service-1 Stopped 
-     Container tp6-eventos-entradas-usuarios-service-1 Removing 
      Container tp6-eventos-entradas-entradas-db-1 Stopped 
      Container tp6-eventos-entradas-entradas-db-1 Removing 
+     Container tp6-eventos-entradas-redis-1 Removed 
+     Container tp6-eventos-entradas-eventos-db-1 Removed 
+     Container tp6-eventos-entradas-entradas-db-1 Removed 
+     Container tp6-eventos-entradas-usuarios-service-1 Stopped 
+     Container tp6-eventos-entradas-usuarios-service-1 Removing 
      Container tp6-eventos-entradas-usuarios-service-1 Removed 
      Container tp6-eventos-entradas-usuarios-db-1 Stopping 
-     Container tp6-eventos-entradas-entradas-db-1 Removed 
      Container tp6-eventos-entradas-usuarios-db-1 Stopped 
      Container tp6-eventos-entradas-usuarios-db-1 Removing 
      Container tp6-eventos-entradas-usuarios-db-1 Removed 
      Network tp6-eventos-entradas_tp6-net Removing 
+     Network tp6-eventos-entradas_eventos-net Removing 
      Network tp6-eventos-entradas_usuarios-net Removing 
      Network tp6-eventos-entradas_entradas-net Removing 
-     Network tp6-eventos-entradas_eventos-net Removing 
-     Network tp6-eventos-entradas_usuarios-net Removed 
      Network tp6-eventos-entradas_tp6-net Removed 
      Network tp6-eventos-entradas_entradas-net Removed 
+     Network tp6-eventos-entradas_usuarios-net Removed 
      Network tp6-eventos-entradas_eventos-net Removed
   ✔ docker compose down
   $ docker volume ls --filter name=tp6-eventos-entradas
@@ -55,29 +55,29 @@
     … (42 líneas anteriores omitidas)
      Container tp6-eventos-entradas-usuarios-db-1 Healthy 
      Container tp6-eventos-entradas-usuarios-service-1 Starting 
+     Container tp6-eventos-entradas-eventos-db-1 Healthy 
      Container tp6-eventos-entradas-entradas-db-1 Healthy 
      Container tp6-eventos-entradas-entradas-service-1 Starting 
      Container tp6-eventos-entradas-usuarios-service-1 Started 
      Container tp6-eventos-entradas-entradas-service-1 Started 
-     Container tp6-eventos-entradas-eventos-db-1 Healthy 
      Container tp6-eventos-entradas-redis-1 Healthy 
      Container tp6-eventos-entradas-eventos-service-1 Starting 
      Container tp6-eventos-entradas-eventos-service-1 Started
   ✔ docker compose up -d
   … esperando: usuarios-service listo (con su base conectada)
-  … listo (2 s)
-  … esperando: eventos-service listo (con su base conectada)
   … listo (0 s)
+  … esperando: eventos-service listo (con su base conectada)
+  … listo (2 s)
   … esperando: entradas-service listo (con su base conectada)
   … listo (0 s)
   ✔ los servicios están disponibles
 
 ▶ 4) Consultar los mismos datos
-  $ curl -s -X GET http://localhost:3001/usuarios/6ad81a2fab63925dbd5ff2b4
-  ← 200 {"nombre":"Prueba","apellido":"Tp6mvhgdxv313","email":"tp6.mvhgdxv313@example.com","dni":"83018340","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123","activo":true,"createdAt":"2026-10-21T01:49:35.719Z","updatedAt":"202…
+  $ curl -s -X GET http://localhost:3001/usuarios/6ada784fb07feaafcd3f1684
+  ← 200 {"nombre":"Prueba","apellido":"Tp6mvk0s6zn13","email":"tp6.mvk0s6zn13@example.com","dni":"58934451","fechaNacimiento":"1995-04-12","direccion":"Calle Falsa 123","activo":true,"createdAt":"2026-10-22T20:55:43.086Z","updatedAt":"202…
   ✔ el usuario creado antes sigue disponible
-  $ curl -s -X GET http://localhost:3002/eventos/6ad81a2f305399aaf97d760b
-  ← 200 {"id":"6ad81a2f305399aaf97d760b","nombre":"Evento TP6 mvhgdxv314","fecha":"2026-11-20T01:49:35.721Z","lugar":"Sala TP6","precio":2500,"aforoTotal":7,"disponibles":7,"estado":"PUBLICADO","createdAt":"2026-10-21T01:49:35.722Z","upda…
+  $ curl -s -X GET http://localhost:3002/eventos/6ada784f26c63499259a4045
+  ← 200 {"id":"6ada784f26c63499259a4045","nombre":"Evento TP6 mvk0s6zn14","fecha":"2026-11-21T20:55:43.088Z","lugar":"Sala TP6","precio":2500,"aforoTotal":7,"disponibles":7,"estado":"PUBLICADO","createdAt":"2026-10-22T20:55:43.092Z","upda…
   ✔ el evento creado antes sigue disponible
   Para demostrar también la diferencia con `down -v` ejecutá esta prueba con --con-down-v.
 

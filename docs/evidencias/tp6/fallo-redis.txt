@@ -2,15 +2,15 @@
 ════════════════════════════════════════════════════════════════
  TP6 · prueba: fallo-redis
 ════════════════════════════════════════════════════════════════
- fecha: 2026-10-21T01:49:12.599Z   equipo: win32 10.0.19045   node v24.22.0
- Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+ fecha: 2026-10-22T20:55:24.920Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
 
 ▶ 1) Con Redis funcionando
   $ curl -s -X GET http://localhost:3002/ready
   ← 200 {"service":"eventos-service","status":"ready","dependencies":{"mongodb":"up","redis":"up"}}
   ✔ /ready → mongodb up, redis up
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a18ab63925dbd5ff2a9","eventoId":"6ad81a18305399aaf97d75f3","cantidad":1}'
-  ← 201 {"orden":{"usuarioId":"6ad81a18ab63925dbd5ff2a9","eventoId":"6ad81a18305399aaf97d75f3","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:49:12.757Z","fechaActualizacion":"…
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada783db07feaafcd3f1679","eventoId":"6ada783d26c63499259a402d","cantidad":1}'
+  ← 201 {"orden":{"usuarioId":"6ada783db07feaafcd3f1679","eventoId":"6ada783d26c63499259a402d","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:25.107Z","fechaActualizacion":"…
   ✔ compra OK → 201
 
 ▶ 2) Detener Redis (el coordinador del lock de aforo)
@@ -29,13 +29,13 @@
   ← 503 {"service":"eventos-service","status":"degraded","dependencies":{"mongodb":"up","redis":"down"}}
   ✔ /ready → 503 degraded, redis down
   ✔ las lecturas (GET /eventos) siguen funcionando: no necesitan el lock
-  $ curl -s -X POST http://localhost:3002/eventos/6ad81a18305399aaf97d75f3/reservar-aforo -H "content-type: application/json" -d '{"cantidad":1,"referencia":"redis-down-mvhgdxv310"}'
+  $ curl -s -X POST http://localhost:3002/eventos/6ada783d26c63499259a402d/reservar-aforo -H "content-type: application/json" -d '{"cantidad":1,"referencia":"redis-down-mvk0s6zn10"}'
   ← 503 {"message":"Coordinador de locks no disponible, intentá más tarde","code":"REDIS_NO_DISPONIBLE"}
   ✔ reservar-aforo (necesita el lock) → 503 REDIS_NO_DISPONIBLE, no un 500
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a18ab63925dbd5ff2a9","eventoId":"6ad81a18305399aaf97d75f3","cantidad":1}'
-  ← 503 {"message":"eventos-service no respondió; la orden quedó PENDIENTE","code":"ORDEN_PENDIENTE","details":{"ordenId":"6ad81a19abd0bb6aa0ada6a5","estado":"PENDIENTE"}}
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada783db07feaafcd3f1679","eventoId":"6ada783d26c63499259a402d","cantidad":1}'
+  ← 503 {"message":"eventos-service no respondió; la orden quedó PENDIENTE","code":"ORDEN_PENDIENTE","details":{"ordenId":"6ada783d1e43ebd15bc05901","estado":"PENDIENTE"}}
   ✔ la compra desde entradas → 503 controlado
-    {"cause":"Error","clave":"lock:evento:6ad81a18305399aaf97d75f3","level":"error","message":"Redis no disponible al tomar el lock","service":"eventos-service","timestamp":"2026-10-21T01:49:13.495Z"}
+    {"cause":"Error","clave":"lock:evento:6ada783d26c63499259a402d","level":"error","message":"Redis no disponible al tomar el lock","service":"eventos-service","timestamp":"2026-10-22T20:55:25.570Z"}
   ✔ queda registrado en los logs de eventos-service
 
 ▶ 4) Reiniciar Redis: recuperación automática
@@ -44,10 +44,10 @@
      Container tp6-eventos-entradas-redis-1 Started
   ✔ docker compose start redis
   … esperando: /ready → 200
-  … listo (4 s)
+  … listo (2 s)
   ✔ eventos-service vuelve a "ready" solo (sin reiniciarlo)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a18ab63925dbd5ff2a9","eventoId":"6ad81a18305399aaf97d75f3","cantidad":1}'
-  ← 201 {"orden":{"usuarioId":"6ad81a18ab63925dbd5ff2a9","eventoId":"6ad81a18305399aaf97d75f3","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:49:18.098Z","fechaActualizacion":"…
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada783db07feaafcd3f1679","eventoId":"6ada783d26c63499259a402d","cantidad":1}'
+  ← 201 {"orden":{"usuarioId":"6ada783db07feaafcd3f1679","eventoId":"6ada783d26c63499259a402d","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:28.351Z","fechaActualizacion":"…
   ✔ la compra vuelve a funcionar → 201
 
 RESULTADO: fallo-redis → OK (12 verificaciones)

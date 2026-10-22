@@ -2,12 +2,12 @@
 ════════════════════════════════════════════════════════════════
  TP6 · prueba: fallo-dependencia
 ════════════════════════════════════════════════════════════════
- fecha: 2026-10-21T01:49:05.810Z   equipo: win32 10.0.19045   node v24.22.0
- Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+ fecha: 2026-10-22T20:55:18.054Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
 
 ▶ 1) Validar el caso de uso con todo levantado
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a119591b17db196ddcb","eventoId":"6ad81a11305399aaf97d75e7","cantidad":1}'
-  ← 201 {"orden":{"usuarioId":"6ad81a119591b17db196ddcb","eventoId":"6ad81a11305399aaf97d75e7","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:49:05.953Z","fechaActualizacion":"…
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada7836946417f5dd672536","eventoId":"6ada783626c63499259a4021","cantidad":1}'
+  ← 201 {"orden":{"usuarioId":"6ada7836946417f5dd672536","eventoId":"6ada783626c63499259a4021","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:18.196Z","fechaActualizacion":"…
   ✔ compra OK → 201
 
 ▶ 2) Detener únicamente el servicio destino (usuarios-service)
@@ -17,7 +17,7 @@
   ✔ docker compose stop usuarios-service
 
 ▶ 3) Repetir la operación desde el servicio origen (entradas-service)
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a119591b17db196ddcb","eventoId":"6ad81a11305399aaf97d75e7","cantidad":1}'
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada7836946417f5dd672536","eventoId":"6ada783626c63499259a4021","cantidad":1}'
   ← 503 {"message":"usuarios-service no está disponible","code":"DEPENDENCIA_NO_DISPONIBLE"}
   ✔ responde 503 controlado (no 500, no se cuelga)
 
@@ -27,16 +27,16 @@
   ✔ entradas-service /health → 200
   ✔ eventos-service no se vio afectado
   $ docker compose ps
-    NAME                                      IMAGE                                                                     COMMAND                  SERVICE            CREATED         STATUS                        PORTS
-    tp6-eventos-entradas-entradas-db-1        mongo:7                                                                   "docker-entrypoint.s…"   entradas-db        2 minutes ago   Up 2 minutes (healthy)        27017/tcp
-    tp6-eventos-entradas-entradas-service-1   sha256:4bb5196f926d56618c8877dabd7e767a770b42803f5088466eebb672684bdf3e   "docker-entrypoint.s…"   entradas-service   2 minutes ago   Up About a minute (healthy)   0.0.0.0:3003->3000/tcp, [::]:3003->3000/tcp
-    tp6-eventos-entradas-eventos-db-1         mongo:7                                                                   "docker-entrypoint.s…"   eventos-db         2 minutes ago   Up 2 minutes (healthy)        27017/tcp
-    tp6-eventos-entradas-eventos-service-1    sha256:dcc58f17011ce3fd4e607cc472671735365cdce94c9b0ba4472713810a28c528   "docker-entrypoint.s…"   eventos-service    2 minutes ago   Up About a minute (healthy)   0.0.0.0:3002->3000/tcp, [::]:3002->3000/tcp
-    tp6-eventos-entradas-redis-1              redis:7-alpine                                                            "docker-entrypoint.s…"   redis              2 minutes ago   Up 2 minutes (healthy)        6379/tcp
-    tp6-eventos-entradas-usuarios-db-1        mongo:7                                                                   "docker-entrypoint.s…"   usuarios-db        2 minutes ago   Up 2 minutes (healthy)        27017/tcp
+    NAME                                      IMAGE                                                                     COMMAND                  SERVICE            CREATED         STATUS                   PORTS
+    tp6-eventos-entradas-entradas-db-1        mongo:7                                                                   "docker-entrypoint.s…"   entradas-db        6 minutes ago   Up 6 minutes (healthy)   27017/tcp
+    tp6-eventos-entradas-entradas-service-1   sha256:36a0e08d8493b36f25bb014d50728626723a742f95dd74deddcbeacb11cf2f45   "docker-entrypoint.s…"   entradas-service   6 minutes ago   Up 6 minutes (healthy)   0.0.0.0:3003->3000/tcp, [::]:3003->3000/tcp
+    tp6-eventos-entradas-eventos-db-1         mongo:7                                                                   "docker-entrypoint.s…"   eventos-db         6 minutes ago   Up 6 minutes (healthy)   27017/tcp
+    tp6-eventos-entradas-eventos-service-1    sha256:ec21a1b801e1e32f3c771c31dfa19e6e6807e32b8f326c07e685a6bcc3da7f18   "docker-entrypoint.s…"   eventos-service    6 minutes ago   Up 6 minutes (healthy)   0.0.0.0:3002->3000/tcp, [::]:3002->3000/tcp
+    tp6-eventos-entradas-redis-1              redis:7-alpine                                                            "docker-entrypoint.s…"   redis              6 minutes ago   Up 6 minutes (healthy)   6379/tcp
+    tp6-eventos-entradas-usuarios-db-1        mongo:7                                                                   "docker-entrypoint.s…"   usuarios-db        6 minutes ago   Up 6 minutes (healthy)   27017/tcp
 
 ▶    El fallo es observable en los logs de entradas-service
-    {"cause":"ENOTFOUND","dependency":"usuarios-service","level":"error","message":"dependencia no disponible","method":"GET","ms":1873,"path":"/usuarios/6ad81a119591b17db196ddcb","service":"entradas-service","timestamp":"20…
+    {"cause":"ENOTFOUND","dependency":"usuarios-service","level":"error","message":"dependencia no disponible","method":"GET","ms":9,"path":"/usuarios/6ada7836946417f5dd672536","service":"entradas-service","timestamp":"2026-…
   ✔ hay un log "dependencia no disponible" con el servicio remoto
 
 ▶ 5) Reiniciar el servicio destino y comprobar la recuperación
@@ -49,8 +49,8 @@
   … esperando: usuarios-service listo (con su base conectada)
   … listo (2 s)
   ✔ usuarios-service vuelve a estar disponible
-  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ad81a119591b17db196ddcb","eventoId":"6ad81a11305399aaf97d75e7","cantidad":1}'
-  ← 201 {"orden":{"usuarioId":"6ad81a119591b17db196ddcb","eventoId":"6ad81a11305399aaf97d75e7","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-21T01:49:12.578Z","fechaActualizacion":"…
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada7836946417f5dd672536","eventoId":"6ada783626c63499259a4021","cantidad":1}'
+  ← 201 {"orden":{"usuarioId":"6ada7836946417f5dd672536","eventoId":"6ada783626c63499259a4021","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:24.886Z","fechaActualizacion":"…
   ✔ la compra vuelve a funcionar → 201 (sin reiniciar entradas-service)
 
 RESULTADO: fallo-dependencia → OK (9 verificaciones)

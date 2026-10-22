@@ -2,11 +2,16 @@
 ════════════════════════════════════════════════════════════════
  TP6 · prueba: swagger
 ════════════════════════════════════════════════════════════════
- fecha: 2026-10-21T01:49:05.670Z   equipo: win32 10.0.19045   node v24.22.0
- Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+ fecha: 2026-10-22T20:55:17.907Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
 
-  usuarios-service no responde en http://localhost:3001. Primero ejecutá:  node scripts/tp6/pruebas.js inicio
+▶ Swagger UI de cada microservicio
+  $ abrir en el navegador: http://localhost:3001/api-docs
+  ✔ usuarios-service: http://localhost:3001/api-docs → 200 (Swagger UI)
+  $ abrir en el navegador: http://localhost:3002/api-docs
+  ✔ eventos-service: http://localhost:3002/api-docs → 200 (Swagger UI)
+  $ abrir en el navegador: http://localhost:3003/api-docs
+  ✔ entradas-service: http://localhost:3003/api-docs → 200 (Swagger UI)
+  Tomá una captura de cada una abierta en el navegador y ejecutá un GET desde "Try it out".
 
-  ✘ La prueba se interrumpió: stack no levantado
-
-RESULTADO: swagger → FALLO (1 de 1 verificaciones fallaron)
+RESULTADO: swagger → OK (3 verificaciones)

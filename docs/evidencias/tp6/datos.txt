@@ -2,8 +2,8 @@
 ════════════════════════════════════════════════════════════════
  TP6 · prueba: datos
 ════════════════════════════════════════════════════════════════
- fecha: 2026-10-21T01:48:47.447Z   equipo: win32 10.0.19045   node v24.22.0
- Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.5.1
+ fecha: 2026-10-22T20:55:10.871Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
 
 ▶ Seed de usuarios-service (IDs fijos 64b000000000000000000001 … 05)
   $ docker compose exec -T usuarios-service npm run seed
@@ -11,6 +11,11 @@
     > node scripts/seed.js
     
     Seed OK: 5 usuarios (1 inactivo: Diego Paz)
+    npm notice
+    npm notice New major version of npm available! 10.9.9 -> 12.2.1
+    npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+    npm notice To update run: npm install -g npm@12.2.1
+    npm notice
   ✔ seed de usuarios aplicado
 
 ▶ Seed de eventos-service (5 eventos con aforo conocido)
@@ -19,11 +24,16 @@
     > node scripts/seed.js
     
     Seed aplicado: 5 eventos en eventos
+    npm notice
+    npm notice New major version of npm available! 10.9.9 -> 12.2.1
+    npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+    npm notice To update run: npm install -g npm@12.2.1
+    npm notice
   ✔ seed de eventos aplicado
 
 ▶ Limpiar órdenes y tickets de entradas-service (no tiene seed propio)
   $ docker compose exec -T entradas-db mongosh --quiet entradas --eval db.ordens.deleteMany({}); db.tickets.deleteMany({})
-    { acknowledged: true, deletedCount: 0 }
+    { acknowledged: true, deletedCount: 9 }
   ✔ colecciones ordens y tickets vaciadas
 
 ▶ Verificar el estado inicial por la API

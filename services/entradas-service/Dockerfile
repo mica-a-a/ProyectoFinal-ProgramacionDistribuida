@@ -20,4 +20,5 @@ EXPOSE 3000
 # No correr como root dentro del contenedor
 USER node
 
-CMD ["npm", "start"]
+# node directo (y no `npm start`): asi SIGTERM de `docker stop` llega a la aplicacion y cierra ordenadamente.
+CMD ["node", "src/server.js"]

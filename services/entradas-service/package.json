@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test test/entradas.test.js",
+    "test": "node --test test/*.test.js",
     "mocks": "node scripts/run-mocks.js"
   },
   "engines": {

@@ -236,10 +236,13 @@ pruebas.inicio = async () => {
   check('docker compose up --build -d termina sin errores', up.code === 0, `código ${up.code}`);
   seccion('Esperar a que los servicios estén disponibles');
   check('los 3 servicios responden y tienen su base conectada', await esperarTodos());
+  const esperados = ['usuarios-db', 'usuarios-service', 'eventos-db', 'redis', 'eventos-service', 'entradas-db', 'entradas-service'];
+  // El healthcheck de Docker corre cada 10 s: un servicio que ya responde puede figurar "starting" unos segundos.
+  const estaSano = (s) => { const c = contenedores().find((x) => x.Service === s); return !!c && c.State === 'running' && (!c.Health || c.Health === 'healthy'); };
+  await esperar('los 7 contenedores en estado healthy', async () => esperados.every(estaSano), { timeoutMs: 90000, cadaMs: 3000 });
   seccion('Estado de los contenedores');
   compose(['ps']);
   const lista = contenedores();
-  const esperados = ['usuarios-db', 'usuarios-service', 'eventos-db', 'redis', 'eventos-service', 'entradas-db', 'entradas-service'];
   for (const s of esperados) {
     const c = lista.find((x) => x.Service === s);
     const ok = c && c.State === 'running' && (!c.Health || c.Health === 'healthy');
@@ -258,6 +261,7 @@ pruebas.health = async () => {
   const r = await http('GET', `${URL_.eventos}/ready`);
   check('/ready: mongodb up y redis up', r.status === 200 && r.json?.dependencies?.mongodb === 'up' && r.json?.dependencies?.redis === 'up');
   seccion('Healthchecks de Docker Compose');
+  await esperar('todos los contenedores en estado healthy', async () => contenedores().every((c) => c.State === 'running' && (!c.Health || c.Health === 'healthy')), { timeoutMs: 60000, cadaMs: 3000 });
   compose(['ps']);
   for (const c of contenedores()) check(`${c.Service}: ${c.State}${c.Health ? ` (${c.Health})` : ''}`, c.State === 'running' && (!c.Health || c.Health === 'healthy'));
 };

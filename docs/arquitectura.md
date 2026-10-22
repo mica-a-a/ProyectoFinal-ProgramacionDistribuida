@@ -2,8 +2,9 @@
 
 **Materia:** Programación Distribuida · Licenciatura en Sistemas de Información
 **Trabajo Práctico N° 5:** De API REST a Microservicios
+**Trabajo Práctico N° 6:** Implementación de Microservicios y Docker (ver [§11](#11-tp6-arquitectura-implementada-y-cambios-respecto-del-tp5))
 **Fecha:** `COMPLETAR`
-**Grupo:** `COMPLETAR`
+**Grupo:** `2`
 **Integrantes:** Bazan Franco · Gorri Juan · Le Donne Micaela · Molina Agostina · Nievas Milagros
 
 > **Dominio elegido:** Eventos y entradas. Usuarios registrados compran entradas para eventos con aforo limitado, reciben un ticket y lo presentan en el ingreso, donde se valida.
@@ -20,6 +21,7 @@
 8. [Trazado de casos de uso](#8-trazado-de-casos-de-uso)
 9. [Diagrama de arquitectura](#9-diagrama-de-arquitectura)
 10. [Validación de los límites propuestos (checklist)](#10-validación-de-los-límites-propuestos-checklist)
+11. [TP6: arquitectura implementada y cambios respecto del TP5](#11-tp6-arquitectura-implementada-y-cambios-respecto-del-tp5)
 
 > La numeración de este documento es propia; entre paréntesis se indica a qué sección de la consigna del TP5 corresponde cada parte.
 
@@ -448,6 +450,76 @@ flowchart TB
 - Se agregan a Usuarios los campos `activo`, `dni`, `fechaNacimiento` y `direccion` (hoy no existen en la app base, que tiene `nombre`, `apellido`, `email` y `edad`), y la baja pasa a ser lógica.
 - Los valores `MAX_ENTRADAS_POR_USUARIO=4` y `PLAZO_CANCELACION_HORAS=24` son propuestas configurables.
 - No se modela el cobro real ni los reembolsos de eventos cancelados.
-- Las compras simultáneas de un mismo usuario para un mismo evento podrían superar el máximo si no se serializan por (usuario, evento); queda como mejora para la implementación.
-- La conservación de Raft sobre algún servicio (candidato: Eventos) se decide en los trabajos de implementación.
+- Las compras simultáneas de un mismo usuario para un mismo evento podrían superar el máximo si no se serializan por (usuario, evento). En la implementación del TP6 se mitiga creando la orden `PENDIENTE` antes de contar y contando también las pendientes de otros pedidos, de modo que cada pedido ve a los demás y, ante la duda, se rechaza de más y no de menos. No es una serialización estricta.
+- La conservación de Raft sobre algún servicio (candidato: Eventos) se decidía en la implementación. **Decisión del TP6: no se migra** (ver [§11.2](#112-cambios-respecto-del-tp5)).
 - La espera de 2 s dentro del lock de reservas es una demostración del TP2: no se migra a Eventos.
+
+---
+
+## 11. TP6: arquitectura implementada y cambios respecto del TP5
+*(Sección 21, punto 3 de la consigna del TP6)*
+
+Los tres servicios aprobados en el TP5 se implementaron con sus límites originales. Esta sección resume lo que quedó en funcionamiento, lo que cambió respecto del diseño y el análisis del fallo parcial.
+
+### 11.1 Arquitectura implementada
+
+| Servicio | Puerto interno | Publicado en la PC | Nombre DNS interno | Base propia | Depende de |
+|---|---|---|---|---|---|
+| `usuarios-service` | 3000 | 3001 | `usuarios-service` | `usuarios-db` (MongoDB) | Nada |
+| `eventos-service` | 3000 | 3002 | `eventos-service` | `eventos-db` (MongoDB) y `redis` | Nada |
+| `entradas-service` | 3000 | 3003 | `entradas-service` | `entradas-db` (MongoDB) | `usuarios-service`, `eventos-service` |
+
+La solución completa se levanta con `docker compose up --build -d` (7 contenedores). Las bases y Redis no se publican hacia la PC. Cada servicio está en una red privada con su base, y `tp6-net` conecta a los tres servicios entre sí.
+
+### 11.2 Cambios respecto del TP5
+
+| Cambio | Motivo |
+|---|---|
+| **Raft no se migra.** En el TP5 era "candidato" para Eventos | Es un mecanismo técnico y no una responsabilidad de negocio. El TP6 pide conservar la exclusión mutua (el lock de Redis), no el consenso. Cada servicio corre una sola instancia |
+| **HTTP en lugar de HTTPS.** El TP5 asumía HTTPS en cada servicio y el diagrama rotula HTTPS en el acceso del cliente | El TP6 permite HTTP entre contenedores. En el laboratorio los servicios escuchan HTTP también hacia el cliente, sin certificados. Si se quisiera HTTPS externo, iría en un proxy delante de los servicios |
+| **Usuarios:** campos nuevos `dni`, `fechaNacimiento`, `direccion` y `activo`; la edad se calcula; baja lógica; prefijo `/usuarios` en lugar de `/users` | El sistema de entradas necesita identificar personas y saber si están habilitadas. La baja lógica evita órdenes que apunten a usuarios inexistentes |
+| **Eventos:** `GET /eventos/:id` devuelve además `estado` y `vendible` | Que Entradas no replique la regla "PUBLICADO y futuro". Es un agregado compatible con el contrato del TP5 |
+| **Eventos:** nuevo `PATCH /eventos/:id/finalizar` | Sin él, el estado `FINALIZADO` no se podría alcanzar |
+| **Eventos:** nuevo `GET /ready` | Distinguir "proceso activo" (`/health`) de "dependencias disponibles" (Mongo y Redis) |
+| **Eventos:** `reservar-aforo` y `liberar-aforo` registran cada movimiento y son idempotentes por `referencia` (el `ordenId`) | Permite reintentar sin descontar ni devolver dos veces |
+| **Eventos:** el lock se libera con un script Lua que compara el token | El `GET` + `DEL` del TP4 podía borrar el lock de otro pedido si el propio había expirado |
+| **Entradas:** el ticket tiene un estado más, `ANULADO` | Las órdenes canceladas dejan tickets que no deben poder usarse. El TP5 solo definía `VÁLIDO` y `USADO` |
+| **Entradas:** una orden queda `PENDIENTE` cuando no se sabe si Eventos descontó el aforo | Deja evidencia para recuperar o compensar sin perder ni duplicar lugares |
+| **Entradas:** reintenta solo cuando Eventos responde `423` (lock ocupado) | En ese caso no se aplicó nada, así que reintentar es seguro |
+| **Entradas no espera a Usuarios ni a Eventos en `depends_on`** | Debe poder arrancar y responder `503` si alguno falta (prueba de indisponibilidad 15.1) |
+| **Infraestructura:** una base por servicio, redes segmentadas, healthchecks y volúmenes nombrados | Hace cumplir la propiedad de los datos también a nivel de red |
+| La espera de 2 s dentro del lock del TP2 no se migra | Era solo una demostración de la exclusión mutua |
+
+El diagrama de la [§9](#9-diagrama-de-arquitectura) sigue siendo válido en cuanto a servicios, responsabilidades, sentido de las llamadas y persistencia. Lo único que difiere de la implementación es el rótulo "HTTPS" del acceso del cliente (ver el segundo cambio de la tabla).
+
+### 11.3 Análisis del fallo parcial: compra de entradas
+
+**1. Servicios que participan y orden de las operaciones**
+
+| Etapa | Servicio | Operación | Cambio de estado |
+|---|---|---|---|
+| 1 | `entradas-service` | Crea la orden | Orden `PENDIENTE` |
+| 2 | `usuarios-service` y `eventos-service` | Consultas de usuario y evento | Ninguno (solo lecturas) |
+| 3 | `eventos-service` | `reservar-aforo` | Descuenta `disponibles` y registra el movimiento |
+| 4 | `entradas-service` | Emite los tickets y confirma | Tickets `VALIDO` y orden `CONFIRMADA` |
+
+**2. Qué pasa si falla cada etapa posterior a una operación ya confirmada**
+
+| Falla | Resultado | Estado en que queda el sistema |
+|---|---|---|
+| Etapa 2: Usuarios o Eventos no responden | `503 DEPENDENCIA_NO_DISPONIBLE` | Orden `RECHAZADA`; no se tocó el aforo |
+| Etapa 3 con respuesta clara (`409` sin lugar, `404`, o `423` tras los reintentos) | Se propaga el error | Orden `RECHAZADA` con su motivo; el aforo no cambió |
+| Etapa 3 incierta (timeout, `5xx` o Redis caído): no se sabe si Eventos llegó a descontar | `503 ORDEN_PENDIENTE` | Orden `PENDIENTE` sin tickets. El aforo puede o no haberse descontado |
+| Etapa 4: falla la emisión de tickets, y se puede compensar | `500 ERROR_INTERNO` | Se borran los tickets parciales, se llama a `liberar-aforo` con la misma referencia y la orden queda `RECHAZADA` (`ERROR_EMISION_TICKETS`) |
+| Etapa 4: falla la emisión y también la compensación | `500 ORDEN_PENDIENTE` | Orden `PENDIENTE` con el aforo **descontado** y sin tickets |
+| Caída del propio `entradas-service` entre etapas | Sin respuesta al cliente | Orden `PENDIENTE` (la etapa 1 ya se había guardado) |
+
+**3. ¿Puede quedar el sistema parcialmente actualizado?** Sí. El caso más claro es una orden `PENDIENTE` sin tickets y con el aforo posiblemente descontado: no hay datos corruptos, pero sí lugares "perdidos" y una orden colgada. El diseño falla del lado seguro: se puede vender de menos, nunca de más. Mientras exista, esa orden cuenta para el máximo de entradas del usuario.
+
+**4. Qué haría falta para detectar, recuperar o compensar en una evolución futura**
+
+- Un proceso que recorra las órdenes `PENDIENTE` vencidas (la orden ya guarda `fechaCreacion`) y reintente `reservar-aforo` con el mismo `ordenId`, que es idempotente, para confirmarlas, o `liberar-aforo` para anularlas.
+- Un endpoint en Eventos para consultar si existe un movimiento de aforo para una referencia, así no hace falta reintentar a ciegas.
+- Contador de intentos y tiempo máximo de vida de una orden pendiente.
+
+**Evidencia reproducible:** `node scripts/tp6/pruebas.js fallo-parcial` detiene Redis, hace una compra, muestra la orden `PENDIENTE` y comprueba que una compra nueva funciona al recuperarse la dependencia (salida en `docs/evidencias/tp6/fallo-parcial.txt`).

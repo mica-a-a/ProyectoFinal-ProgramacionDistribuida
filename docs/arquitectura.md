@@ -523,3 +523,37 @@ El diagrama de la [§9](#9-diagrama-de-arquitectura) sigue siendo válido en cua
 - Contador de intentos y tiempo máximo de vida de una orden pendiente.
 
 **Evidencia reproducible:** `node scripts/tp6/pruebas.js fallo-parcial` detiene Redis, hace una compra, muestra la orden `PENDIENTE` y comprueba que una compra nueva funciona al recuperarse la dependencia (salida en `docs/evidencias/tp6/fallo-parcial.txt`).
+
+---
+
+## 12. TP7: identidad y control de acceso
+*(Cambios de responsabilidad del TP7. Detalle, matrices y justificación en [`docs/tp7-hito1-seguridad.md`](tp7-hito1-seguridad.md))*
+
+El TP7 agrega autenticación y autorización **sin cambiar la topología**: no se crea un cuarto servicio y los límites funcionales y la propiedad de los datos siguen siendo los del TP5 y TP6. El componente de identidad se integra en `usuarios-service`, que ya era el dueño de las personas.
+
+### 12.1 Cambios de responsabilidad
+
+| Servicio | Antes (TP6) | Con el TP7 |
+|---|---|---|
+| `usuarios-service` | Datos personales de las personas | **Además:** credenciales (`passwordHash`, `role`), registro (`POST /auth/register`), login (`POST /auth/login`) y emisión de tokens JWT. Es la única autoridad sobre las credenciales |
+| `eventos-service` | Eventos y aforo, sin noción de identidad | Valida el JWT y exige el rol `ADMIN` para gestionar eventos. Sigue sin consultar la base de usuarios |
+| `entradas-service` | Compra y tickets, sin noción de identidad | Valida el JWT, aplica la regla de propiedad de órdenes y tickets (el `sub` del token debe coincidir con el `usuarioId`) y **propaga el token** a Usuarios y Eventos |
+
+### 12.2 Decisiones de arquitectura
+
+| Tema | Decisión |
+|---|---|
+| Quién emite los tokens | Solo `usuarios-service` |
+| Quién los valida | Los tres servicios, de forma local, con un middleware propio. No consultan la base de usuarios en cada request |
+| Firma | HS256 con `JWT_SECRET`, compartido por variable de entorno desde el `.env` raíz |
+| Claims | `sub`, `role`, `iat`, `exp` e `iss`. Sin contraseña, hash ni datos personales |
+| Roles | `USER` y `ADMIN` |
+| Propagación | Entradas reenvía el `Authorization: Bearer` del cliente a Usuarios y a Eventos |
+| Reglas de negocio | Siguen en su servicio dueño. Usuarios solo emite una identidad; no decide quién ve una orden ni quién gestiona eventos |
+
+### 12.3 Limitaciones asumidas
+
+- **Sin revocación:** un token emitido es válido hasta que vence (1 hora por defecto), aunque la cuenta se deshabilite después.
+- **Clave simétrica:** cualquier servicio que tenga `JWT_SECRET` podría firmar tokens. Con firma asimétrica (RS256) solo Usuarios podría hacerlo.
+- **`reservar-aforo` y `liberar-aforo`:** exigen un token válido de cualquier rol porque Entradas propaga el del comprador, y el puerto de Eventos está publicado. Un usuario autenticado podría llamarlos directamente. Mejora futura: un rol de servicio o no publicar ese puerto.
+- **Si Usuarios cae después de emitir un token:** Eventos y Entradas siguen validando tokens. Dejan de funcionar el login, el registro y las compras (Entradas responde `503`, como en el TP6).

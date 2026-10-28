@@ -54,6 +54,7 @@ module.exports = {
   servers: [{ url: '/' }],
   tags: [
     { name: 'Usuarios', description: 'CRUD de usuarios con baja lógica' },
+    { name: 'Autenticación', description: 'Login y emisión de JWT (HS256)' },
     { name: 'Salud', description: 'Estado del servicio' },
   ],
   paths: {
@@ -76,6 +77,38 @@ module.exports = {
               },
             },
           },
+        },
+      },
+    },
+    '/auth/login': {
+      post: {
+        tags: ['Autenticación'],
+        summary: 'Iniciar sesión y obtener un JWT',
+        description:
+          'Valida email y contraseña contra el hash guardado y, solo si son correctos, emite un JWT firmado con HS256 ' +
+          'con los claims `sub` (id del usuario), `role` (tomado de la base, nunca del request), `iat`, `exp` e `iss`. ' +
+          'El token no contiene contraseña, hash ni datos personales. El vencimiento se configura con `JWT_EXPIRES_IN` ' +
+          '(default 1 h). Usuario inexistente y contraseña incorrecta devuelven el MISMO 401. Una cuenta deshabilitada ' +
+          'devuelve 403 solo si la contraseña es correcta. Usar el token como `Authorization: Bearer <token>`.',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginEntrada' } } },
+        },
+        responses: {
+          200: {
+            description: 'Credenciales válidas',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginRespuesta' } } },
+          },
+          400: errorValidacion,
+          401: error('Usuario inexistente o contraseña incorrecta (no se revela cuál)', {
+            message: 'Credenciales inválidas',
+            code: 'CREDENCIALES_INVALIDAS',
+          }),
+          403: error('Cuenta deshabilitada (la contraseña era correcta)', {
+            message: 'La cuenta está deshabilitada',
+            code: 'CUENTA_DESHABILITADA',
+          }),
+          503: dbNoDisponible,
         },
       },
     },
@@ -173,6 +206,22 @@ module.exports = {
           dni: { type: 'string', pattern: '^\\d{7,8}$', example: '30123456' },
           fechaNacimiento: { type: 'string', example: '1990-05-14', description: 'YYYY-MM-DD, fecha real y no futura' },
           direccion: { type: 'string', maxLength: 200, example: 'San Martín 123, Mendoza' },
+        },
+      },
+      LoginEntrada: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email: { type: 'string', format: 'email', example: 'lucia.fernandez@example.com' },
+          password: { type: 'string', format: 'password', maxLength: 72, description: 'Máximo 72 bytes (límite de bcrypt)' },
+        },
+      },
+      LoginRespuesta: {
+        type: 'object',
+        properties: {
+          token: { type: 'string', description: 'JWT HS256 con claims sub, role, iat, exp e iss' },
+          tokenType: { type: 'string', example: 'Bearer' },
+          expiresIn: { type: 'integer', example: 3600, description: 'Segundos de vida del token (JWT_EXPIRES_IN)' },
         },
       },
       Error: {

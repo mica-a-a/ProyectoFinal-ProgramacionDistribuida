@@ -47,6 +47,10 @@ services:
       PORT: 3000
       LOG_LEVEL: ${LOG_LEVEL:-info}
       MONGODB_URI: mongodb://usuarios-db:27017/usuarios
+      # TP7: el secreto es obligatorio (sin default a proposito) y se define una sola vez en el .env raiz.
+      JWT_SECRET: ${JWT_SECRET:?Defini JWT_SECRET en el .env de la raiz (minimo 32 caracteres, ver .env.example)}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      JWT_ISSUER: usuarios-service
     ports:
       - "${USUARIOS_HOST_PORT:-3001}:3000"
     depends_on:

@@ -90,7 +90,7 @@ Si ya tenés algo en 3001 a 3003, cambiá `USUARIOS_HOST_PORT`, `EVENTOS_HOST_PO
 
 ## Variables de entorno
 
-- **`.env` de la raíz:** solo lo lee Docker Compose. Plantilla en [`.env.example`](.env.example): `IMAGE_PREFIX`, `LOG_LEVEL`, `*_HOST_PORT`, `LOCK_TTL_MS`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
+- **`.env` de la raíz:** solo lo lee Docker Compose. Plantilla en [`.env.example`](.env.example): `IMAGE_PREFIX`, `LOG_LEVEL`, `*_HOST_PORT`, `JWT_SECRET` (obligatoria, sin default), `JWT_EXPIRES_IN` (default `1h`), `LOCK_TTL_MS`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
 - **`.env` de cada servicio** (solo para ejecución sin Docker): `services/<servicio>/.env.example`. Variables: `SERVICE_NAME`, `PORT`, `LOG_LEVEL`, `MONGODB_URI`, y según el servicio `REDIS_URL`, `LOCK_TTL_MS`, `USUARIOS_SERVICE_URL`, `EVENTOS_SERVICE_URL`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
 - Ningún `.env` real se sube a Git. No hay contraseñas, tokens ni claves en los Dockerfile, en el Compose ni en el código.
 

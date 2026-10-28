@@ -12,6 +12,7 @@ const ID = '64b000000000000000000001';
 const body = {
   nombre: 'Lucía', apellido: 'Fernández', email: 'lucia@example.com',
   dni: '30123456', fechaNacimiento: '1990-05-14',
+  password: 'clave-de-prueba-1', // TP7: el alta exige contraseña
 };
 const doc = (extra = {}) =>
   new Usuario({ _id: ID, ...body, fechaNacimiento: new Date('1990-05-14'), activo: true, ...extra });

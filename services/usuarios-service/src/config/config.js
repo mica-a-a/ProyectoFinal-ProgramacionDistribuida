@@ -14,6 +14,10 @@ const config = {
   mongodbRetryMs: int(process.env.MONGODB_RETRY_MS, 3000),
   // Cuánto espera el driver para encontrar el servidor antes de fallar (falla rápido).
   mongodbTimeoutMs: int(process.env.MONGODB_TIMEOUT_MS, 3000),
+
+  // TP7: costo de bcrypt (2^N iteraciones). 12 es razonable hoy; en los tests se baja para que corran rápido.
+  // Es un getter para que los tests puedan fijar BCRYPT_ROUNDS antes de usarlo.
+  get bcryptRounds() { return int(process.env.BCRYPT_ROUNDS, 12); },
 };
 
 module.exports = config;

@@ -72,4 +72,20 @@ function validarUsuario(body, hoy = new Date()) {
   return { data, errors };
 }
 
-module.exports = { validarUsuario, parseFecha };
+// ---- TP7: contraseña y rol -------------------------------------------------------------------
+const ROLES = ['USER', 'ADMIN'];
+
+// bcrypt solo usa los primeros 72 bytes: se rechaza lo que los supere para no truncar en silencio.
+function validarPassword(password) {
+  if (typeof password !== 'string' || password === '') return ['La contraseña es obligatoria'];
+  const errors = [];
+  if (password.length < 8) errors.push('La contraseña debe tener al menos 8 caracteres');
+  if (Buffer.byteLength(password, 'utf8') > 72) errors.push('La contraseña no puede superar 72 bytes');
+  return errors;
+}
+
+function validarRol(role) {
+  return ROLES.includes(role) ? [] : [`El rol debe ser uno de: ${ROLES.join(', ')}`];
+}
+
+module.exports = { validarUsuario, parseFecha, validarPassword, validarRol, ROLES };

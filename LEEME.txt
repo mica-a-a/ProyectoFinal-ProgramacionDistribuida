@@ -1,0 +1,26 @@
+TP7 - Punto 2 (identidad y credenciales) - solo usuarios-service
+================================================================
+Las rutas estan relativas a la raiz del repo.
+
+ARCHIVOS NUEVOS (copiar tal cual):
+  services/usuarios-service/src/services/auth.service.js
+  services/usuarios-service/src/controllers/auth.controller.js
+  services/usuarios-service/src/routes/auth.routes.js
+  services/usuarios-service/test/registro.test.js
+
+ARCHIVOS MODIFICADOS (si nadie los toco desde el zip original, se pueden pisar;
+si hay cambios de otros companeros, aplicar a mano las lineas que se muestran en el chat):
+  services/usuarios-service/package.json            (+ bcryptjs)
+  services/usuarios-service/.env.example            (+ BCRYPT_ROUNDS, SEED_*)
+  services/usuarios-service/scripts/seed.js         (hash + rol + ADMIN)
+  services/usuarios-service/src/app.js              (monta /auth)
+  services/usuarios-service/src/config/config.js    (bcryptRounds)
+  services/usuarios-service/src/models/Usuario.js   (passwordHash, role)
+  services/usuarios-service/src/services/validacion.js       (validarPassword, validarRol)
+  services/usuarios-service/src/services/usuarios.service.js (alta exige password)
+  services/usuarios-service/test/api.test.js        (+ password en el body)
+
+DESPUES DE COPIAR:
+  cd services/usuarios-service && npm install      (actualiza package-lock.json: COMMITEARLO,
+                                                    los Dockerfile usan npm ci)
+  npm test

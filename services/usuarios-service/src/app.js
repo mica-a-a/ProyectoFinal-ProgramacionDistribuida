@@ -4,6 +4,7 @@ const logger = require('./config/logger');
 const openapi = require('./docs/openapi');
 const healthRoutes = require('./routes/health.routes');
 const usuariosRoutes = require('./routes/usuarios.routes');
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 app.use(express.json());
@@ -23,6 +24,7 @@ app.use((req, res, next) => {
 });
 
 app.use(healthRoutes);
+app.use(authRoutes);
 app.use(usuariosRoutes);
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapi));

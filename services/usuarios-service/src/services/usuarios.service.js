@@ -1,7 +1,9 @@
 const Usuario = require('../models/Usuario');
 const logger = require('../config/logger');
 const { AppError } = require('../config/errors');
-const { validarUsuario } = require('./validacion');
+const { validarUsuario, validarPassword, validarRol } = require('./validacion');
+const bcrypt = require('bcryptjs');
+const config = require('../config/config');
 
 const ID_RE = /^[a-f\d]{24}$/i;
 
@@ -68,9 +70,20 @@ async function obtener(id) {
   return usuario;
 }
 
+// Alta ADMINISTRADA (TP7): la usará solo un ADMIN (la protección se aplica en las rutas). Exige contraseña,
+// para que no existan identidades sin credenciales, y permite elegir el rol (USER por defecto).
+// El auto-registro público es POST /auth/register, que SIEMPRE crea USER.
 async function crear(body) {
   const data = validarOFallar(body);
-  return ejecutar('crear', () => Usuario.create({ ...data, activo: true }));
+  const errores = validarPassword(body.password);
+  const role = body.role === undefined ? 'USER' : body.role;
+  errores.push(...validarRol(role));
+  if (errores.length > 0) {
+    logger.warn('validación fallida', { errors: errores });
+    throw new AppError(400, 'Error de validación', 'VALIDACION', errores);
+  }
+  const passwordHash = await bcrypt.hash(body.password, config.bcryptRounds);
+  return ejecutar('crear', () => Usuario.create({ ...data, passwordHash, role, activo: true }));
 }
 
 async function actualizar(id, body) {
@@ -94,4 +107,4 @@ async function darDeBaja(id) {
   return usuario;
 }
 
-module.exports = { listar, obtener, crear, actualizar, darDeBaja };
+module.exports = { listar, obtener, crear, actualizar, darDeBaja, ejecutar, validarOFallar };

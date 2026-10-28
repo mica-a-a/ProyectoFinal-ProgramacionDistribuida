@@ -12,5 +12,6 @@ router.use('/auth', (req, res, next) => {
 });
 
 router.post('/auth/register', controller.registrar); // público
+router.post('/auth/login', controller.login);       // público: es la única forma de obtener un token
 
 module.exports = router;

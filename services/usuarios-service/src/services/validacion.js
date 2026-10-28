@@ -88,4 +88,23 @@ function validarRol(role) {
   return ROLES.includes(role) ? [] : [`El rol debe ser uno de: ${ROLES.join(', ')}`];
 }
 
-module.exports = { validarUsuario, parseFecha, validarPassword, validarRol, ROLES };
+// Login: solo se valida la FORMA de las credenciales (400). Las reglas de largo mínimo del registro no se aplican
+// acá a propósito: una contraseña corta es simplemente incorrecta (401), no un dato inválido.
+function validarLogin(body) {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return { data: null, errors: ['El cuerpo debe ser un objeto JSON'] };
+  }
+  const errors = [];
+  const email = texto(body.email);
+  if (!email) errors.push('El email es obligatorio');
+  else if (email.length > 254) errors.push('El email no tiene un formato válido');
+  else if (!EMAIL_RE.test(email)) errors.push('El email no tiene un formato válido');
+
+  const { password } = body;
+  if (typeof password !== 'string' || password === '') errors.push('La contraseña es obligatoria');
+  else if (Buffer.byteLength(password, 'utf8') > 72) errors.push('La contraseña no puede superar 72 bytes');
+
+  return errors.length > 0 ? { data: null, errors } : { data: { email: email.toLowerCase(), password }, errors };
+}
+
+module.exports = { validarUsuario, parseFecha, validarPassword, validarRol, validarLogin, ROLES };

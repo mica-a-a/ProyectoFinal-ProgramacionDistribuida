@@ -51,6 +51,10 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Defini JWT_SECRET en el .env de la raiz (minimo 32 caracteres, ver .env.example)}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       JWT_ISSUER: usuarios-service
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      # Solo los usa `npm run seed` (docker compose exec usuarios-service npm run seed). Valores de laboratorio.
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     ports:
       - "${USUARIOS_HOST_PORT:-3001}:3000"
     depends_on:
@@ -91,6 +95,9 @@ services:
       MONGODB_URI: mongodb://eventos-db:27017/eventos
       REDIS_URL: redis://redis:6379
       LOCK_TTL_MS: ${LOCK_TTL_MS:-5000}
+      # TP7: verifica la firma de los tokens LOCALMENTE (no consulta a usuarios-service). Mismo secreto que el emisor.
+      JWT_SECRET: ${JWT_SECRET:?Defini JWT_SECRET en el .env de la raiz (ver .env.example)}
+      JWT_ISSUER: usuarios-service
     ports:
       - "${EVENTOS_HOST_PORT:-3002}:3000"
     depends_on:
@@ -124,6 +131,9 @@ services:
       REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-3000}
       MAX_ENTRADAS_POR_USUARIO: ${MAX_ENTRADAS_POR_USUARIO:-4}
       PLAZO_CANCELACION_HORAS: ${PLAZO_CANCELACION_HORAS:-24}
+      # TP7: valida el token del cliente LOCALMENTE y lo reenvia a usuarios-service y eventos-service.
+      JWT_SECRET: ${JWT_SECRET:?Defini JWT_SECRET en el .env de la raiz (ver .env.example)}
+      JWT_ISSUER: usuarios-service
     ports:
       - "${ENTRADAS_HOST_PORT:-3003}:3000"
     # Solo la base es obligatoria para arrancar. Usuarios y Eventos NO se esperan a proposito:

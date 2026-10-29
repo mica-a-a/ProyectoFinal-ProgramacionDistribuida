@@ -1,0 +1,51 @@
+
+════════════════════════════════════════════════════════════════
+ TP6 · prueba: fallo-parcial
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-22T20:55:39.280Z   equipo: darwin 25.5.0   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
+  Caso de uso: comprar entradas = entradas (crea orden) → eventos (reserva aforo) → entradas (emite tickets).
+  Se simula una falla en la etapa intermedia (reservar aforo) deteniendo Redis.
+  aforo antes: 10
+
+▶ 1) Provocar la falla en la etapa 2
+  $ docker compose stop redis
+    Container tp6-eventos-entradas-redis-1 Stopping 
+     Container tp6-eventos-entradas-redis-1 Stopped
+  ✔ docker compose stop redis
+  … esperando: eventos-service detecta que Redis no está (/ready → 503)
+  … listo (0 s)
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2}'
+  ← 503 {"message":"eventos-service no respondió; la orden quedó PENDIENTE","code":"ORDEN_PENDIENTE","details":{"ordenId":"6ada784b1e43ebd15bc05904","estado":"PENDIENTE"}}
+  ✔ la compra responde 503 ORDEN_PENDIENTE
+
+▶ 2) Estado en que quedó el sistema
+  $ curl -s -X GET http://localhost:3003/ordenes/6ada784b1e43ebd15bc05904
+  ← 200 {"orden":{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2,"precioUnitario":2500,"estado":"PENDIENTE","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:39.819Z","fechaActualizacion":"2…
+  ✔ la orden existe y quedó PENDIENTE (etapa 1 confirmada, etapa 3 nunca ocurrió)
+  ✔ no se emitió ningún ticket
+  $ curl -s -X GET http://localhost:3002/eventos/6ada784b26c63499259a403b
+  ← 200 {"id":"6ada784b26c63499259a403b","nombre":"Evento TP6 mvk0s6zn12","fecha":"2026-11-21T20:55:39.431Z","lugar":"Sala TP6","precio":2500,"aforoTotal":10,"disponibles":10,"estado":"PUBLICADO","createdAt":"2026-10-22T20:55:39.435Z","up…
+  ✔ el aforo no cambió (disponibles = 10)
+
+▶ 3) Recuperar la dependencia y ver qué pasa con la orden
+  $ docker compose start redis
+    Container tp6-eventos-entradas-redis-1 Starting 
+     Container tp6-eventos-entradas-redis-1 Started
+  ✔ docker compose start redis
+  … esperando: eventos-service ready
+  … listo (2 s)
+  $ curl -s -X GET http://localhost:3003/ordenes/6ada784b1e43ebd15bc05904
+  ← 200 {"orden":{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2,"precioUnitario":2500,"estado":"PENDIENTE","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:39.819Z","fechaActualizacion":"2…
+  ✔ la orden SIGUE PENDIENTE: no hay recuperación automática (queda como mejora futura)
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2}'
+  ← 201 {"orden":{"usuarioId":"6ada784bb07feaafcd3f1680","eventoId":"6ada784b26c63499259a403b","cantidad":2,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-22T20:55:42.206Z","fechaActualizacion":"…
+  ✔ una compra nueva funciona (el sistema no quedó bloqueado)
+
+▶ Análisis (para el informe, punto 15.3)
+  Estado parcial: orden PENDIENTE sin tickets y sin aforo descontado; no hay datos corruptos pero sí una orden "colgada".
+  La orden PENDIENTE cuenta para el máximo por usuario y evento, así que puede restar capacidad de compra al usuario.
+  Para recuperar/compensar haría falta: un proceso que reintente reservar-aforo con la misma referencia (ordenId),
+  que es idempotente, o liberar-aforo; y un campo con la fecha/intentos de la orden para detectar las vencidas.
+
+RESULTADO: fallo-parcial → OK (8 verificaciones)

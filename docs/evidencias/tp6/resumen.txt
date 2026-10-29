@@ -1,0 +1,15 @@
+TP6 - resumen de pruebas (2026-10-22T20:56:00.403Z)
+
+OK     build                6 verificaciones
+OK     inicio               10 verificaciones
+OK     health               11 verificaciones
+OK     datos                5 verificaciones
+OK     negocio              27 verificaciones
+OK     datos-propios        14 verificaciones
+OK     swagger              3 verificaciones
+OK     fallo-dependencia    9 verificaciones
+OK     fallo-redis          12 verificaciones
+OK     fallo-db             7 verificaciones
+OK     fallo-parcial        8 verificaciones
+OK     logs                 4 verificaciones
+OK     persistencia         9 verificaciones

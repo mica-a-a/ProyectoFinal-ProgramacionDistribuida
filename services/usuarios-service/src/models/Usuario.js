@@ -8,6 +8,11 @@ const usuarioSchema = new mongoose.Schema(
     fechaNacimiento: { type: Date, required: true },
     direccion: { type: String, trim: true, default: '' },
     activo: { type: Boolean, default: true },
+    // TP7 - credenciales. passwordHash guarda el hash bcrypt (jamás la contraseña) y no sale en las
+    // consultas (select: false). Los usuarios creados antes del TP7 no lo tienen: no pueden iniciar sesión
+    // hasta que se les asigne una contraseña (el seed los recrea con credenciales).
+    passwordHash: { type: String, select: false },
+    role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
   },
   {
     timestamps: true,
@@ -17,6 +22,7 @@ const usuarioSchema = new mongoose.Schema(
       transform: (doc, ret) => {
         ret.id = String(ret._id);
         delete ret._id;
+        delete ret.passwordHash; // defensa extra: el hash nunca se devuelve por HTTP
         ret.fechaNacimiento = doc.fechaNacimiento.toISOString().slice(0, 10);
         return ret;
       },

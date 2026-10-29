@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 process.env.LOG_LEVEL = 'error';
+const { firmar, bearer } = require('./helpers/token'); // TP7: fija JWT_SECRET de prueba; va ANTES de cargar la app
 
 const db = require('../src/config/db');
 const Usuario = require('../src/models/Usuario');
@@ -12,6 +13,7 @@ const ID = '64b000000000000000000001';
 const body = {
   nombre: 'Lucía', apellido: 'Fernández', email: 'lucia@example.com',
   dni: '30123456', fechaNacimiento: '1990-05-14',
+  password: 'clave-de-prueba-1', // TP7: el alta exige contraseña
 };
 const doc = (extra = {}) =>
   new Usuario({ _id: ID, ...body, fechaNacimiento: new Date('1990-05-14'), activo: true, ...extra });
@@ -23,10 +25,12 @@ test.before(async () => {
 });
 test.after(() => server.close());
 
-const call = (method, path, json) =>
+// TP7: los endpoints de /usuarios exigen token; por defecto se llama como ADMIN.
+const ADMIN = firmar({ role: 'ADMIN' });
+const call = (method, path, json, token = ADMIN) =>
   fetch(base + path, {
     method,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...bearer(token) },
     body: json === undefined ? undefined : JSON.stringify(json),
   });
 

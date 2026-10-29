@@ -6,6 +6,9 @@ const healthRoutes = require('./routes/health.routes');
 const usuariosRoutes = require('./routes/usuarios.routes');
 const authRoutes = require('./routes/auth.routes');
 
+// TP7: cada request autenticado deja en el log QUIEN lo hizo (sub y rol del token ya validado). Nunca el token.
+const identidadLog = (req) => (req.auth ? { sub: req.auth.sub, role: req.auth.role } : {});
+
 const app = express();
 app.use(express.json());
 
@@ -18,6 +21,7 @@ app.use((req, res, next) => {
       path: req.originalUrl,
       status: res.statusCode,
       ms: Date.now() - start,
+      ...identidadLog(req),
     });
   });
   next();

@@ -5,6 +5,9 @@ const openapi = require('./docs/openapi');
 const { createHealthRoutes } = require('./routes/health.routes');
 const { createEventosRoutes } = require('./routes/eventos.routes');
 
+// TP7: cada request autenticado deja en el log QUIEN lo hizo (sub y rol del token ya validado). Nunca el token.
+const identidadLog = (req) => (req.auth ? { sub: req.auth.sub, role: req.auth.role } : {});
+
 const ERRORES_DE_INFRAESTRUCTURA = [
   'MongooseServerSelectionError', 'MongoServerSelectionError', 'MongoNetworkError', 'MongoNetworkTimeoutError',
 ];
@@ -21,7 +24,7 @@ function createApp({ eventosController, healthController }) {
   app.use((req, res, next) => {
     const start = Date.now();
     res.on('finish', () => {
-      logger.info('request', { method: req.method, path: req.originalUrl, status: res.statusCode, ms: Date.now() - start });
+      logger.info('request', { method: req.method, path: req.originalUrl, status: res.statusCode, ms: Date.now() - start, ...identidadLog(req) });
     });
     next();
   });

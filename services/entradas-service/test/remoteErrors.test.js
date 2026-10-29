@@ -24,3 +24,26 @@ test('un timeout o una conexión rechazada sigue siendo 503 y no un error funcio
   assert.equal(e.status, 503);
   assert.equal(e.code, 'DEPENDENCIA_NO_DISPONIBLE');
 });
+
+// TP7 - propagación del token: cómo se traduce lo que responde el servicio remoto a la identidad propagada.
+const remoto = (kind, status, body) => new RemoteServiceError({ service: 'usuarios-service', kind, status, body, message: 'x' });
+
+test('401 TOKEN_VENCIDO del servicio remoto: se informa 401 al cliente (debe volver a iniciar sesión)', () => {
+  const e = toAppError(remoto('UNAUTHENTICATED', 401, { code: 'TOKEN_VENCIDO' }));
+  assert.equal(e.status, 401);
+  assert.equal(e.code, 'TOKEN_VENCIDO');
+});
+
+test('cualquier otro 401 del servicio remoto es un problema de configuración nuestro: 502, no 401', () => {
+  for (const body of [{ code: 'TOKEN_INVALIDO' }, { code: 'TOKEN_AUSENTE' }, null]) {
+    const e = toAppError(remoto('UNAUTHENTICATED', 401, body));
+    assert.equal(e.status, 502);
+    assert.equal(e.code, 'DEPENDENCIA_AUTENTICACION');
+  }
+});
+
+test('un 403 del servicio dueño del recurso se propaga como 403', () => {
+  const e = toAppError(remoto('FORBIDDEN', 403, { message: 'No tenés permisos sobre este recurso', code: 'PERMISOS_INSUFICIENTES' }));
+  assert.equal(e.status, 403);
+  assert.equal(e.code, 'PERMISOS_INSUFICIENTES');
+});

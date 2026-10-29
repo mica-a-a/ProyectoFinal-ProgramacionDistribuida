@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 process.env.LOG_LEVEL = 'error';
+const { firmar, bearer } = require('./helpers/token'); // TP7: fija JWT_SECRET de prueba; va ANTES de cargar la app
 
 const db = require('../src/config/db');
 const Usuario = require('../src/models/Usuario');
@@ -24,10 +25,12 @@ test.before(async () => {
 });
 test.after(() => server.close());
 
-const call = (method, path, json) =>
+// TP7: los endpoints de /usuarios exigen token; por defecto se llama como ADMIN.
+const ADMIN = firmar({ role: 'ADMIN' });
+const call = (method, path, json, token = ADMIN) =>
   fetch(base + path, {
     method,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...bearer(token) },
     body: json === undefined ? undefined : JSON.stringify(json),
   });
 

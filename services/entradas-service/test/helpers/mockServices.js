@@ -1,6 +1,30 @@
 // Simulan usuarios-service y eventos-service siguiendo los contratos del TP5 (sección 7).
 // Sirven para probar entradas-service sin depender de que los otros servicios estén terminados.
 const express = require('express');
+const jwt = require('jsonwebtoken');
+
+// TP7: los simulados validan el token IGUAL que los servicios reales (HS256, emisor usuarios-service). Así un test
+// puede comprobar que Entradas propaga el Authorization del cliente: si no lo reenviara, el simulado respondería 401.
+// `state.forzar = { status, code }` permite simular que el servicio remoto rechaza el token o el permiso.
+function verificarBearer(req) {
+  const header = req.headers.authorization;
+  if (!header) return { status: 401, code: 'TOKEN_AUSENTE' };
+  const [esquema, token] = header.trim().split(/\s+/);
+  if (!/^bearer$/i.test(esquema) || !token) return { status: 401, code: 'TOKEN_INVALIDO' };
+  try {
+    return { claims: jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'], issuer: 'usuarios-service' }) };
+  } catch (err) {
+    return { status: 401, code: err.name === 'TokenExpiredError' ? 'TOKEN_VENCIDO' : 'TOKEN_INVALIDO' };
+  }
+}
+
+const exigirToken = (state) => (req, res, next) => {
+  if (state.forzar) return res.status(state.forzar.status).json({ message: 'rechazo simulado', code: state.forzar.code });
+  const r = verificarBearer(req);
+  if (r.status) return res.status(r.status).json({ message: 'Token rechazado por el servicio remoto', code: r.code });
+  req.claims = r.claims;
+  return next();
+};
 
 const horas = (h) => new Date(Date.now() + h * 36e5).toISOString();
 
@@ -27,10 +51,14 @@ function seedEventos() {
 }
 
 function startUsuariosMock(port = 0) {
-  const state = { usuarios: seedUsuarios() };
+  const state = { usuarios: seedUsuarios(), llamadas: [], forzar: null };
   const app = express();
+  app.use((req, res, next) => {
+    state.llamadas.push({ method: req.method, path: req.path, authorization: req.headers.authorization, headers: req.headers });
+    next();
+  });
   app.get('/health', (req, res) => res.json({ service: 'usuarios-service', status: 'ok' }));
-  app.get('/usuarios/:id', (req, res) => {
+  app.get('/usuarios/:id', exigirToken(state), (req, res) => {
     const u = state.usuarios[req.params.id];
     if (!u) return res.status(404).json({ message: 'Usuario no encontrado' });
     return res.json(u);
@@ -46,12 +74,13 @@ function startEventosMock(port = 0) {
     llamadas: [],             // registro de pedidos recibidos (para los tests)
     lockOcupadoVeces: 0,      // responde 423 esa cantidad de veces
     fallo: null,              // 'http500' | 'lento' para simular fallos
+    forzar: null,             // { status, code }: el servicio rechaza el token o el permiso (TP7)
     demoraMs: 0,
   };
   const app = express();
   app.use(express.json());
   app.use(async (req, res, next) => {
-    state.llamadas.push({ method: req.method, path: req.path, body: req.body });
+    state.llamadas.push({ method: req.method, path: req.path, body: req.body, authorization: req.headers.authorization });
     if (state.demoraMs) await new Promise((r) => setTimeout(r, state.demoraMs));
     next();
   });
@@ -61,7 +90,7 @@ function startEventosMock(port = 0) {
     if (!e) return res.status(404).json({ message: 'Evento no encontrado' });
     return res.json(e);
   });
-  app.post('/eventos/:id/reservar-aforo', (req, res) => {
+  app.post('/eventos/:id/reservar-aforo', exigirToken(state), (req, res) => {
     const e = state.eventos[req.params.id];
     if (!e) return res.status(404).json({ message: 'Evento no encontrado' });
     if (state.lockOcupadoVeces > 0) { state.lockOcupadoVeces -= 1; return res.status(423).json({ message: 'Evento ocupado' }); }
@@ -75,7 +104,7 @@ function startEventosMock(port = 0) {
     state.movimientos.set(referencia, cantidad);
     return res.json({ reservado: true, disponibles: e.disponibles });
   });
-  app.post('/eventos/:id/liberar-aforo', (req, res) => {
+  app.post('/eventos/:id/liberar-aforo', exigirToken(state), (req, res) => {
     const e = state.eventos[req.params.id];
     if (!e) return res.status(404).json({ message: 'Evento no encontrado' });
     const { cantidad, referencia } = req.body;

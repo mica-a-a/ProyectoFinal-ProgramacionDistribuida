@@ -1,7 +1,11 @@
 const { AppError } = require('../config/errors');
 const { RemoteServiceError } = require('../clients/httpClient');
 
-// Traduce los errores del cliente HTTP a errores del servicio (tabla 15.2 del TP6):
+// Traduce los errores del cliente HTTP a errores del servicio (tabla 15.2 del TP6 + propagación del token del TP7):
+//   UNAUTHENTICATED -> 401 SOLO si el token venció a mitad de la operación (el cliente debe volver a iniciar sesión).
+//                      Cualquier otro 401 remoto es un problema NUESTRO (servicios con distinto JWT_SECRET o emisor,
+//                      o token no reenviado): Entradas ya validó el token, así que no se le echa la culpa al cliente -> 502
+//   FORBIDDEN       -> 403 se propaga: el servicio dueño del recurso aplicó su regla de autorización
 //   NOT_FOUND       -> 404 funcional (no se convierte en 503)
 //   CONFLICT        -> 409 se propaga
 //   LOCKED          -> 423 recurso ocupado (reintentable)
@@ -18,6 +22,11 @@ function toAppError(err, overrides = {}) {
   if (!(err instanceof RemoteServiceError)) return err;
   const o = overrides[err.kind] || {};
   switch (err.kind) {
+    case 'UNAUTHENTICATED':
+      if (codigoRemoto(err) === 'TOKEN_VENCIDO') return new AppError(401, 'Token vencido', 'TOKEN_VENCIDO');
+      return new AppError(502, `${err.service} no aceptó la credencial del pedido`, 'DEPENDENCIA_AUTENTICACION');
+    case 'FORBIDDEN':
+      return new AppError(403, mensajeRemoto(err) || 'No tenés permisos para esta operación', 'PERMISOS_INSUFICIENTES');
     case 'NOT_FOUND':
       return new AppError(404, o.message || mensajeRemoto(err) || `Recurso no encontrado en ${err.service}`, o.code || 'RECURSO_NO_ENCONTRADO');
     case 'CONFLICT':

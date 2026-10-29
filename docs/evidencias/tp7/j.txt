@@ -1,0 +1,79 @@
+
+════════════════════════════════════════════════════════════════
+ TP7 · prueba: j
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-29T22:15:38.641Z   equipo: win32 10.0.26200   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
+
+▶ Preparación: iniciar sesión como administrador y registrar a dos usuarios
+  ADMIN: claims { sub: 64b000000000000000000006, role: ADMIN, iss: usuarios-service, vence en 3600 s }
+  USER A: claims { sub: 6ae3c58c53f8a228a6ab0458, role: USER, iss: usuarios-service, vence en 3600 s }
+  USER B: claims { sub: 6ae3c58c53f8a228a6ab045b, role: USER, iss: usuarios-service, vence en 3600 s }
+  evento de prueba 6ae3c58d1f3d0f2284a3eebb (aforo 10)
+
+▶ 1) Sin identidad no pasa nada: Entradas rechaza antes de llamar a otro servicio
+  $ curl -s -X POST http://localhost:3003/ordenes -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1}'
+  ← 401 {"message":"Falta el token de autenticación","code":"TOKEN_AUSENTE"}
+  ✔ POST /ordenes sin token → 401 TOKEN_AUSENTE
+  ✔ el aforo no cambió (10)
+
+▶ 2) USER A compra para sí mismo: Entradas propaga SU token a Usuarios y a Eventos
+  $ curl -s -X POST http://localhost:3003/ordenes -H "Authorization: Bearer <token de USER A>" -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":2}'
+  ← 201 {"orden":{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":2,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-29T22:15:42.345Z","fechaActualizacion":"…
+  ✔ POST /ordenes (2 entradas) → 201 CONFIRMADA con 2 tickets
+  ✔ Eventos descontó el aforo: disponibles = 8
+  Evidencia de que la identidad llegó a los otros servicios (logs de request con sub y role):
+    log: usuarios-service GET /usuarios/6ae3c58c53f8a228a6ab0458 → 200 sub=6ae3c58c53f8a228a6ab0458 role=USER
+  ✔ usuarios-service recibió GET /usuarios/:id autenticado como USER A (200)
+    log: eventos-service POST /eventos/6ae3c58d1f3d0f2284a3eebb/reservar-aforo → 200 sub=6ae3c58c53f8a228a6ab0458 role=USER
+  ✔ eventos-service recibió reservar-aforo autenticado como USER A (200)
+
+▶ 3) Contraste: los servicios internos exigen identidad; por eso Entradas tiene que propagarla
+  $ curl -s -X GET http://localhost:3001/usuarios/6ae3c58c53f8a228a6ab0458
+  ← 401 {"message":"Falta el token de autenticación","code":"TOKEN_AUSENTE"}
+  ✔ GET /usuarios/:id directo y sin token → 401 TOKEN_AUSENTE
+  $ curl -s -X POST http://localhost:3002/eventos/6ae3c58d1f3d0f2284a3eebb/reservar-aforo -H "content-type: application/json" -d '{"cantidad":1,"referencia":"sin-token-mvu3qtsx"}'
+  ← 401 {"message":"Falta el token de autenticación","code":"TOKEN_AUSENTE"}
+  ✔ POST reservar-aforo directo y sin token → 401 TOKEN_AUSENTE
+  ✔ el aforo sigue en 8
+
+▶ 4) Propiedad del recurso: USER A no puede comprar a nombre de B (403, sin tocar a nadie)
+  $ curl -s -X POST http://localhost:3003/ordenes -H "Authorization: Bearer <token de USER A>" -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab045b","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1}'
+  ← 403 {"message":"No tenés permisos sobre este recurso","code":"PERMISOS_INSUFICIENTES"}
+  ✔ POST /ordenes de A para B → 403 PERMISOS_INSUFICIENTES
+  ✔ usuarios-service NO recibió ninguna consulta sobre B (Entradas cortó antes)
+  ✔ el aforo sigue en 8
+
+▶ 5) ADMIN compra para B: viaja la identidad del ADMIN y Usuarios lo autoriza por su rol
+  $ curl -s -X POST http://localhost:3003/ordenes -H "Authorization: Bearer <token de ADMIN>" -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab045b","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1}'
+  ← 201 {"orden":{"usuarioId":"6ae3c58c53f8a228a6ab045b","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-29T22:15:45.529Z","fechaActualizacion":"…
+  ✔ POST /ordenes del ADMIN para B → 201 CONFIRMADA
+    log: usuarios-service GET /usuarios/6ae3c58c53f8a228a6ab045b → 200 sub=64b000000000000000000006 role=ADMIN
+  ✔ usuarios-service recibió GET /usuarios/:idB como ADMIN (sub = id del ADMIN, 200)
+  ✔ Eventos descontó el aforo: disponibles = 7
+
+▶ 6) La autorización se conserva al consultar lo comprado
+  $ curl -s -X GET http://localhost:3003/ordenes/6ae3c591b39f89ec5d3f1df5 -H "Authorization: Bearer <token de USER A>"
+  ← 403 {"message":"No tenés permisos sobre este recurso","code":"PERMISOS_INSUFICIENTES"}
+  ✔ USER A consulta la orden de B → 403
+  ✔ USER B consulta su propia orden → 200
+  ✔ ADMIN consulta la orden de B → 200
+
+▶ 7) Cancelar también propaga el token (liberar-aforo)
+  $ curl -s -X DELETE http://localhost:3003/ordenes/6ae3c58eb39f89ec5d3f1df2 -H "Authorization: Bearer <token de USER A>"
+  ← 200 {"orden":{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":2,"precioUnitario":2500,"estado":"CANCELADA","motivoRechazo":null,"fechaCreacion":"2026-10-29T22:15:42.345Z","fechaActualizacion":"2…
+  ✔ USER A cancela su orden → 200 CANCELADA
+    log: eventos-service POST /eventos/6ae3c58d1f3d0f2284a3eebb/liberar-aforo → 200 sub=6ae3c58c53f8a228a6ab0458 role=USER
+  ✔ eventos-service recibió liberar-aforo autenticado como USER A (200)
+  ✔ el aforo volvió a 9
+
+▶ 8) Un token inválido no se propaga: se rechaza en la puerta de Entradas
+  $ curl -s -X POST http://localhost:3003/ordenes -H "Authorization: Bearer <token VENCIDO>" -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1}'
+  ← 401 {"message":"Token vencido","code":"TOKEN_VENCIDO"}
+  ✔ token vencido → 401 TOKEN_VENCIDO
+  $ curl -s -X POST http://localhost:3003/ordenes -H "Authorization: Bearer <token ALTERADO (USER→ADMIN)>" -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1}'
+  ← 401 {"message":"Token inválido","code":"TOKEN_INVALIDO"}
+  ✔ token con el rol alterado a mano → 401 TOKEN_INVALIDO
+  ✔ el aforo no cambió (9): nada llegó a Eventos
+
+RESULTADO: j → OK (24 verificaciones)

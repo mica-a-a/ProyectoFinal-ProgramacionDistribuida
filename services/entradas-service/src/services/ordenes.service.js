@@ -53,7 +53,8 @@ async function marcarRechazada(orden, motivo) {
 // -------------------------------------------------------------------
 // Comprar entradas (caso de uso 1 del TP5, sección 8.1)
 // -------------------------------------------------------------------
-async function crearOrden(body = {}) {
+// `ctx` = contexto de identidad del pedido ({ authorization }): se reenvía a Usuarios y a Eventos (TP7, sección 13).
+async function crearOrden(body = {}, ctx = {}) {
   const usuarioId = normalizarId(body.usuarioId, 'usuarioId');
   const eventoId = normalizarId(body.eventoId, 'eventoId');
   const { cantidad } = body;
@@ -76,7 +77,7 @@ async function crearOrden(body = {}) {
   // 2) Usuarios decide si el usuario existe y está activo.
   let usuario;
   try {
-    usuario = await usuariosClient.getUsuario(usuarioId);
+    usuario = await usuariosClient.getUsuario(usuarioId, ctx);
   } catch (err) {
     return rechazar(toAppError(err, { NOT_FOUND: { message: 'Usuario no encontrado', code: 'USUARIO_NO_ENCONTRADO' } }));
   }
@@ -87,7 +88,7 @@ async function crearOrden(body = {}) {
   // 3) Eventos informa precio y datos del evento.
   let evento;
   try {
-    evento = await eventosClient.getEvento(eventoId);
+    evento = await eventosClient.getEvento(eventoId, ctx);
   } catch (err) {
     return rechazar(toAppError(err, { NOT_FOUND: { message: 'Evento no encontrado', code: 'EVENTO_NO_ENCONTRADO' } }));
   }
@@ -112,7 +113,7 @@ async function crearOrden(body = {}) {
 
   // 5) Eventos (único dueño del aforo) reserva los lugares. Idempotente por referencia.
   try {
-    await conReintentoLock(() => eventosClient.reservarAforo(eventoId, { cantidad, referencia: ordenId }));
+    await conReintentoLock(() => eventosClient.reservarAforo(eventoId, { cantidad, referencia: ordenId }, ctx));
   } catch (err) {
     if (esIncierto(err)) {
       // No sabemos si Eventos llegó a descontar: la orden queda PENDIENTE para poder recuperarla.
@@ -141,7 +142,7 @@ async function crearOrden(body = {}) {
     logger.error('falló la emisión de tickets, se intenta compensar el aforo', { ordenId, message: err.message });
     await Ticket.deleteMany({ ordenId: orden._id }).catch(() => {});
     try {
-      await conReintentoLock(() => eventosClient.liberarAforo(eventoId, { cantidad, referencia: ordenId }));
+      await conReintentoLock(() => eventosClient.liberarAforo(eventoId, { cantidad, referencia: ordenId }, ctx));
       await marcarRechazada(orden, 'ERROR_EMISION_TICKETS');
       throw new AppError(500, 'No se pudieron emitir los tickets; el aforo fue devuelto', 'ERROR_INTERNO');
     } catch (compensacion) {
@@ -166,7 +167,7 @@ async function obtenerOrden(id) {
 // -------------------------------------------------------------------
 // Cancelar una orden (caso de uso adicional, sección 8.3)
 // -------------------------------------------------------------------
-async function cancelarOrden(id) {
+async function cancelarOrden(id, ctx = {}) {
   validarIdOrden(id);
   const orden = await Orden.findById(id);
   if (!orden) throw new AppError(404, 'Orden no encontrada', 'ORDEN_NO_ENCONTRADA');
@@ -180,7 +181,7 @@ async function cancelarOrden(id) {
   // Plazo: la fecha del evento la informa Eventos (fuente única).
   let evento;
   try {
-    evento = await eventosClient.getEvento(orden.eventoId);
+    evento = await eventosClient.getEvento(orden.eventoId, ctx);
   } catch (err) {
     throw toAppError(err, { NOT_FOUND: { message: 'Evento no encontrado', code: 'EVENTO_NO_ENCONTRADO' } });
   }
@@ -200,7 +201,7 @@ async function cancelarOrden(id) {
   }
 
   try {
-    await conReintentoLock(() => eventosClient.liberarAforo(orden.eventoId, { cantidad: orden.cantidad, referencia: ordenId }));
+    await conReintentoLock(() => eventosClient.liberarAforo(orden.eventoId, { cantidad: orden.cantidad, referencia: ordenId }, ctx));
   } catch (err) {
     // La cancelación queda pendiente de reintento: se restauran los tickets.
     await Ticket.updateMany({ ordenId: orden._id, estado: 'ANULADO' }, { estado: 'VALIDO' });

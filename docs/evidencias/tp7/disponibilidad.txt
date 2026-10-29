@@ -1,0 +1,55 @@
+
+════════════════════════════════════════════════════════════════
+ TP7 · prueba: disponibilidad
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-29T22:15:48.087Z   equipo: win32 10.0.26200   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
+
+▶ 1) Con todo levantado: A compra y se obtiene una orden
+  $ curl -s -X POST http://localhost:3003/ordenes -H "Authorization: Bearer <token de USER A>" -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1}'
+  ← 201 {"orden":{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-29T22:15:48.094Z","fechaActualizacion":"…
+  ✔ compra → 201
+
+▶ 2) Detener únicamente usuarios-service (el emisor de tokens) DESPUÉS de haber emitido los tokens
+  $ docker compose stop usuarios-service
+    Container tp6-eventos-entradas-usuarios-service-1 Stopping 
+     Container tp6-eventos-entradas-usuarios-service-1 Stopped
+  ✔ docker compose stop usuarios-service
+
+▶ 3) Lo que SIGUE funcionando: la validación del token es local en cada servicio
+  $ curl -s -X POST http://localhost:3002/eventos -H "Authorization: Bearer <token de ADMIN>" -H "content-type: application/json" -d '{"nombre":"Evento sin Usuarios mvu3qtsx","fecha":"2026-11-28T22:15:52.594Z","lugar":"Sala TP7","precio":100,"aforoTotal":5}'
+  ← 201 {"id":"6ae3c5981f3d0f2284a3eedb","nombre":"Evento sin Usuarios mvu3qtsx","fecha":"2026-11-28T22:15:52.594Z","lugar":"Sala TP7","precio":100,"aforoTotal":5,"disponibles":5,"estado":"PUBLICADO","createdAt":"2026-10-29T22:15:52.618Z"…
+  ✔ ADMIN crea un evento → 201 (Eventos valida el token por sí mismo)
+  $ curl -s -X GET http://localhost:3003/ordenes/6ae3c594b39f89ec5d3f1df7 -H "Authorization: Bearer <token de USER A>"
+  ← 200 {"orden":{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-29T22:15:48.094Z","fechaActualizacion":"…
+  ✔ USER A consulta su orden → 200 (Entradas valida el token por sí mismo)
+  ✔ el catálogo público sigue disponible → 200
+
+▶ 4) Lo que DEJA de funcionar: lo que depende de Usuarios, con error controlado
+  $ curl -s -X POST http://localhost:3003/ordenes -H "Authorization: Bearer <token de USER A>" -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1}'
+  ← 503 {"message":"usuarios-service no está disponible","code":"DEPENDENCIA_NO_DISPONIBLE"}
+  ✔ comprar → 503 DEPENDENCIA_NO_DISPONIBLE (no un 500; Entradas no se cae)
+    log: entradas-service GET dependencia usuarios-service (ENOTFOUND) → sub=- role=-
+  ✔ el fallo queda en el log de Entradas con la dependencia remota
+  $ curl -s -X POST http://localhost:3001/auth/login -H "content-type: application/json" -d '{"email":"tp7.mvu3qtsxA@example.com","password":"***"}'
+  ← sin respuesta (ECONNREFUSED)
+  ✔ el login no está disponible (el servicio emisor está caído)
+
+▶ 5) Reiniciar usuarios-service: el token emitido ANTES de la caída sigue siendo válido
+  $ docker compose start usuarios-service
+    Container tp6-eventos-entradas-usuarios-db-1 Waiting 
+     Container tp6-eventos-entradas-usuarios-db-1 Healthy 
+     Container tp6-eventos-entradas-usuarios-service-1 Starting 
+     Container tp6-eventos-entradas-usuarios-service-1 Started
+  ✔ docker compose start usuarios-service
+  … esperando: login disponible
+  … listo (2 s)
+  ✔ usuarios-service vuelve a responder
+  $ curl -s -X GET http://localhost:3001/usuarios/6ae3c58c53f8a228a6ab0458 -H "Authorization: Bearer <token de USER A>"
+  ← 200 {"nombre":"PruebaA","apellido":"Tp7mvu3qtsxA","email":"tp7.mvu3qtsxa@example.com","dni":"20813132","fechaNacimiento":"1995-04-12","direccion":"","activo":true,"role":"USER","createdAt":"2026-10-29T22:15:40.121Z","updatedAt":"2026-…
+  ✔ el token viejo de A sigue valiendo: GET /usuarios/:id → 200 (no hay sesión que perder)
+  $ curl -s -X POST http://localhost:3003/ordenes -H "Authorization: Bearer <token de USER A>" -H "content-type: application/json" -d '{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1}'
+  ← 201 {"orden":{"usuarioId":"6ae3c58c53f8a228a6ab0458","eventoId":"6ae3c58d1f3d0f2284a3eebb","cantidad":1,"precioUnitario":2500,"estado":"CONFIRMADA","motivoRechazo":null,"fechaCreacion":"2026-10-29T22:16:00.904Z","fechaActualizacion":"…
+  ✔ la compra vuelve a funcionar con el mismo token → 201
+
+RESULTADO: disponibilidad → OK (12 verificaciones)

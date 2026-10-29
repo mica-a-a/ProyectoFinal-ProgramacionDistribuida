@@ -1,0 +1,31 @@
+
+════════════════════════════════════════════════════════════════
+ TP7 · prueba: logs-seguridad
+════════════════════════════════════════════════════════════════
+ fecha: 2026-10-29T22:16:01.230Z   equipo: win32 10.0.26200   node v24.19.0
+ Docker version 29.7.2, build a7dcaa6  ·  Docker Compose version v5.4.0
+
+▶ 1) Provocar un login fallido y uno exitoso para que existan eventos de autenticación
+  $ curl -s -X POST http://localhost:3001/auth/login -H "content-type: application/json" -d '{"email":"tp7.mvu3qtsxA@example.com","password":"***"}'
+  ← 401 {"message":"Credenciales inválidas","code":"CREDENCIALES_INVALIDAS"}
+  ✔ login con contraseña incorrecta → 401 CREDENCIALES_INVALIDAS (mensaje genérico)
+
+▶ 2) Revisar los logs de los tres servicios
+  usuarios-service: 84 líneas revisadas
+  eventos-service: 91 líneas revisadas
+  entradas-service: 93 líneas revisadas
+  ✔ hay eventos de login exitoso registrados
+    log: {"level":"warn","message":"login fallido","motivo":"password_incorrecta","service":"usuarios-service","timestamp":"2026-10-29T22:16:01.570Z"}
+  ✔ hay eventos de login fallido registrados (con el motivo técnico, sin la contraseña)
+  ✔ usuarios-service: ningún JWT en los logs
+  ✔ usuarios-service: ninguna contraseña en los logs
+  ✔ usuarios-service: ningún hash bcrypt en los logs
+  ✔ eventos-service: ningún JWT en los logs
+  ✔ eventos-service: ninguna contraseña en los logs
+  ✔ eventos-service: ningún hash bcrypt en los logs
+  ✔ entradas-service: ningún JWT en los logs
+  ✔ entradas-service: ninguna contraseña en los logs
+  ✔ entradas-service: ningún hash bcrypt en los logs
+  ✔ ningún log contiene el JWT_SECRET
+
+RESULTADO: logs-seguridad → OK (13 verificaciones)

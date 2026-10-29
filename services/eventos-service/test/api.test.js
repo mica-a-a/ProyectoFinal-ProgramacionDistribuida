@@ -1,15 +1,19 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { firmar, bearer } = require('./helpers/token'); // TP7: fija JWT_SECRET de prueba
 const { armar, datosEvento } = require('./helpers/armar');
+
+// TP7: la gestión de eventos exige ADMIN; por defecto se llama como ADMIN (token: null = sin token).
+const ADMIN = firmar({ role: 'ADMIN' });
 
 async function conServidor(opciones, fn) {
   const ctx = armar(opciones);
   const server = ctx.app.listen(0);
   const base = `http://127.0.0.1:${server.address().port}`;
-  const http = async (metodo, ruta, cuerpo) => {
+  const http = async (metodo, ruta, cuerpo, token = ADMIN) => {
     const res = await fetch(base + ruta, {
       method: metodo,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...(token ? bearer(token) : {}) },
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
     });
     const texto = await res.text();

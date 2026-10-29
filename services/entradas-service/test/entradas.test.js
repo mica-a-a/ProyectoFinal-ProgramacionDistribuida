@@ -5,6 +5,11 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { startUsuariosMock, startEventosMock } = require('./helpers/mockServices');
 const { makeModel } = require('./helpers/fakeModels');
+const { firmar, vencido, adulterado, bearer } = require('./helpers/token'); // TP7: fija JWT_SECRET de prueba
+
+// TP7: todo endpoint de Entradas exige token. Por defecto se llama como ADMIN (pasa la regla de propiedad);
+// los tests de seguridad al final del archivo usan USER y tokens inválidos. token: null = sin token.
+const ADMIN = firmar({ sub: 'admin1', role: 'ADMIN' });
 
 const src = (p) => path.join(__dirname, '..', 'src', p);
 const injectar = (modulo, exports) => { require.cache[require.resolve(src(modulo))] = { id: src(modulo), filename: src(modulo), loaded: true, exports }; };
@@ -44,8 +49,8 @@ test.beforeEach(() => {
   for (const e of Object.values(eventos.state.eventos)) { e.disponibles = e.aforoTotal; if (e.estado === 'AGOTADO') e.estado = 'PUBLICADO'; }
 });
 
-const http = async (method, url, body) => {
-  const res = await fetch(base + url, { method, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+const http = async (method, url, body, token = ADMIN) => {
+  const res = await fetch(base + url, { method, headers: { 'content-type': 'application/json', ...(token ? bearer(token) : {}) }, body: body ? JSON.stringify(body) : undefined });
   return { status: res.status, body: await res.json() };
 };
 const comprar = (over = {}) => http('POST', '/ordenes', { usuarioId: 'u1', eventoId: 'e1', cantidad: 2, ...over });
@@ -281,4 +286,82 @@ test('validar con Eventos caído: se rechaza el ingreso con 503', async () => {
 test('JSON inválido: 400', async () => {
   const res = await fetch(`${base}/ordenes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{malo' });
   assert.equal(res.status, 400);
+});
+
+// =====================================================================
+// TP7 (punto 4) - Autenticación (401), autorización por rol (403) y propiedad del recurso
+// =====================================================================
+const USER_U1 = firmar({ sub: 'u1', role: 'USER' });
+const USER_U2 = firmar({ sub: 'u2', role: 'USER' });
+const ID_ORDEN_INEXISTENTE = 'a'.repeat(24);
+
+test('E: sin token -> 401 TOKEN_AUSENTE en todos los endpoints protegidos (y /health sigue público)', async () => {
+  assert.equal((await http('GET', '/health', undefined, null)).status, 200);
+  const protegidos = [
+    ['POST', '/ordenes', { usuarioId: 'u1', eventoId: 'e1', cantidad: 1 }],
+    ['GET', `/ordenes/${ID_ORDEN_INEXISTENTE}`],
+    ['DELETE', `/ordenes/${ID_ORDEN_INEXISTENTE}`],
+    ['GET', '/entradas?usuarioId=u1'],
+    ['POST', '/entradas/validar', { codigo: 'X' }],
+  ];
+  for (const [m, u, b] of protegidos) {
+    const r = await http(m, u, b, null);
+    assert.equal(r.status, 401, `${m} ${u}`);
+    assert.equal(r.body.code, 'TOKEN_AUSENTE');
+  }
+});
+
+test('F: token modificado a mano -> 401 TOKEN_INVALIDO', async () => {
+  const r = await http('GET', '/entradas?usuarioId=u1', undefined, adulterado({ sub: 'u1' }));
+  assert.equal(r.status, 401);
+  assert.equal(r.body.code, 'TOKEN_INVALIDO');
+});
+
+test('G: token vencido -> 401 TOKEN_VENCIDO', async () => {
+  const r = await http('GET', '/entradas?usuarioId=u1', undefined, vencido({ sub: 'u1' }));
+  assert.equal(r.status, 401);
+  assert.equal(r.body.code, 'TOKEN_VENCIDO');
+});
+
+test('H: USER no puede validar tickets (403) y el ticket no se gasta; ADMIN sí puede (I)', async () => {
+  const c = await comprar({ cantidad: 1 });
+  const codigo = c.body.tickets[0].codigo;
+  const denegado = await http('POST', '/entradas/validar', { codigo }, USER_U1);
+  assert.equal(denegado.status, 403);
+  assert.equal(denegado.body.code, 'PERMISOS_INSUFICIENTES');
+  assert.equal(Ticket.rows[0].estado, 'VALIDO');
+  assert.equal((await http('POST', '/entradas/validar', { codigo })).status, 200); // ADMIN por defecto
+});
+
+test('propiedad: un USER compra para sí mismo (201) pero no para otro usuario (403, sin crear orden)', async () => {
+  const propia = await http('POST', '/ordenes', { usuarioId: 'u1', eventoId: 'e1', cantidad: 1 }, USER_U1);
+  assert.equal(propia.status, 201);
+  const ajena = await http('POST', '/ordenes', { usuarioId: 'u2', eventoId: 'e1', cantidad: 1 }, USER_U1);
+  assert.equal(ajena.status, 403);
+  assert.equal(ajena.body.code, 'PERMISOS_INSUFICIENTES');
+  assert.equal(Orden.rows.length, 1);
+});
+
+test('propiedad: un USER no ve ni cancela órdenes ajenas (403); sí las propias; ADMIN puede con todas', async () => {
+  const c = await comprar({ usuarioId: 'u1', cantidad: 1 });
+  const id = c.body.orden.id;
+
+  assert.equal((await http('GET', `/ordenes/${id}`, undefined, USER_U2)).status, 403);
+  const cancelAjeno = await http('DELETE', `/ordenes/${id}`, undefined, USER_U2);
+  assert.equal(cancelAjeno.status, 403);
+  assert.equal(Orden.rows[0].estado, 'CONFIRMADA'); // el 403 llegó ANTES de cancelar: no se tocó nada
+
+  assert.equal((await http('GET', `/ordenes/${id}`, undefined, USER_U1)).status, 200);
+  assert.equal((await http('GET', `/ordenes/${id}`)).status, 200); // ADMIN
+  assert.equal((await http('DELETE', `/ordenes/${id}`, undefined, USER_U1)).status, 200); // el dueño cancela
+});
+
+test('propiedad: un USER lista solo sus propias entradas; las de otro usuario dan 403', async () => {
+  await comprar({ usuarioId: 'u1', cantidad: 2 });
+  const propias = await http('GET', '/entradas?usuarioId=u1', undefined, USER_U1);
+  assert.equal(propias.status, 200);
+  assert.equal(propias.body.length, 2);
+  const ajenas = await http('GET', '/entradas?usuarioId=u1', undefined, USER_U2);
+  assert.equal(ajenas.status, 403);
+  assert.equal(ajenas.body.code, 'PERMISOS_INSUFICIENTES');
 });

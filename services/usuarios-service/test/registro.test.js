@@ -4,6 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 process.env.LOG_LEVEL = 'error';
 process.env.BCRYPT_ROUNDS = '4'; // bcrypt barato en tests (en producción: 12)
+const { firmar, bearer } = require('./helpers/token'); // TP7: JWT_SECRET de prueba; va ANTES de cargar la app
+const ADMIN = firmar({ role: 'ADMIN' });
 
 const bcrypt = require('bcryptjs');
 const db = require('../src/config/db');
@@ -113,7 +115,7 @@ test('validarPassword y validarRol', () => {
 test('alta administrada (POST /usuarios): exige contraseña, valida el rol y guarda hash', async () => {
   let guardado;
   Usuario.create = async (d) => { guardado = d; return new Usuario({ _id: ID, ...d }); };
-  const post = (json) => fetch(`${base}/usuarios`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(json) });
+  const post = (json) => fetch(`${base}/usuarios`, { method: 'POST', headers: { 'content-type': 'application/json', ...bearer(ADMIN) }, body: JSON.stringify(json) });
   assert.strictEqual((await post({ ...datos, password: undefined })).status, 400);
   assert.strictEqual((await post({ ...datos, role: 'ROOT' })).status, 400);
   const ok = await post({ ...datos, role: 'ADMIN' });
@@ -128,7 +130,7 @@ test('el hash nunca sale en la lista ni en el detalle', async () => {
     fechaNacimiento: new Date('1995-04-12'), passwordHash: await bcrypt.hash(CLAVE, 4), role: 'USER' });
   Usuario.find = () => ({ sort: async () => [doc] });
   Usuario.findById = async () => doc;
-  const lista = await (await fetch(`${base}/usuarios`)).text();
-  const detalle = await (await fetch(`${base}/usuarios/${ID}`)).text();
+  const lista = await (await fetch(`${base}/usuarios`, { headers: bearer(ADMIN) })).text();
+  const detalle = await (await fetch(`${base}/usuarios/${ID}`, { headers: bearer(ADMIN) })).text();
   for (const t of [lista, detalle]) assert.ok(!t.includes('passwordHash') && !t.includes(doc.passwordHash));
 });

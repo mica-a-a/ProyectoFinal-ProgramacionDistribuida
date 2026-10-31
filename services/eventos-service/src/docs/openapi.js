@@ -1,5 +1,5 @@
 // Contrato OpenAPI de eventos-service. Debe coincidir con el comportamiento real.
-const config = require('../config/config');
+const { aplicarSeguridad } = require('./seguridad');
 
 const idParam = { name: 'id', in: 'path', required: true, schema: { type: 'string', example: '66f1a2b3c4d5e6f708091a2b' }, description: 'ID del evento (24 caracteres hexadecimales)' };
 
@@ -18,7 +18,7 @@ const cuerpoMovimiento = {
   content: { 'application/json': { schema: { $ref: '#/components/schemas/Movimiento' } } },
 };
 
-module.exports = {
+const spec = {
   openapi: '3.0.3',
   info: {
     title: 'eventos-service',
@@ -27,7 +27,8 @@ module.exports = {
       'Eventos y control de aforo. Es la única autoridad sobre cuántos lugares quedan: ' +
       'la reserva y la liberación se hacen con exclusión mutua por evento (lock en Redis) y son idempotentes por `referencia`.',
   },
-  servers: [{ url: `http://localhost:${config.port}` }],
+  // URL relativa: "Try it out" le pega al mismo host y puerto desde donde se abrió Swagger (local o el puerto publicado por Docker).
+  servers: [{ url: '/' }],
   tags: [
     { name: 'Eventos', description: 'Gestión de eventos (uso del cliente)' },
     { name: 'Aforo (interno)', description: 'Operaciones que invoca entradas-service' },
@@ -182,3 +183,13 @@ module.exports = {
     },
   },
 };
+
+// TP7: esquema Bearer, endpoints protegidos con su rol y respuestas 401 y 403 (ver ./seguridad.js).
+module.exports = aplicarSeguridad(spec, {
+  'POST /eventos': { acceso: 'Requiere rol ADMIN' },
+  'PUT /eventos/{id}': { acceso: 'Requiere rol ADMIN' },
+  'PATCH /eventos/{id}/cancelar': { acceso: 'Requiere rol ADMIN' },
+  'PATCH /eventos/{id}/finalizar': { acceso: 'Requiere rol ADMIN' },
+  'POST /eventos/{id}/reservar-aforo': { acceso: 'Requiere un token válido (cualquier rol). Operación interna de entradas-service', forbidden: false },
+  'POST /eventos/{id}/liberar-aforo': { acceso: 'Requiere un token válido (cualquier rol). Operación interna de entradas-service', forbidden: false },
+}, "Autenticación (TP7): los endpoints marcados con 🔒 exigen `Authorization: Bearer <JWT>`. El token se obtiene con `POST /auth/login` de usuarios-service (puerto 3001) y se verifica acá por la firma, sin consultar a Usuarios. El catálogo (`GET /eventos`) es público. Gestionar eventos exige rol ADMIN; `reservar-aforo` y `liberar-aforo` son internos (los invoca entradas-service reenviando el token del comprador) y aceptan cualquier rol.");

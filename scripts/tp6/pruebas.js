@@ -53,6 +53,12 @@ function leerDotEnv() {
 }
 
 const ENV = { ...leerDotEnv(), ...process.env };
+
+// TP7: casi todos los endpoints exigen token. Estas pruebas operan como el ADMIN del seed (puede todo) y obtienen
+// el token UNA vez, antes de detener ningun servicio. Hace falta SEED_ADMIN_PASSWORD (o ADMIN_PASSWORD) en el .env.
+const ADMIN_EMAIL = ENV.ADMIN_EMAIL || 'admin@example.com';
+const ADMIN_PASSWORD = ENV.ADMIN_PASSWORD || ENV.SEED_ADMIN_PASSWORD;
+let tokenAdminCache = null;
 const PREFIJO = ENV.IMAGE_PREFIX || 'grupo';
 const SERVICIOS = ['usuarios-service', 'eventos-service', 'entradas-service'];
 const URL_ = {
@@ -118,16 +124,31 @@ function docker(argv, { mostrar = true, maxLineas = 25 } = {}) {
 }
 const compose = (argv, opts) => docker(['compose', ...argv], opts);
 
+async function tokenAdmin() {
+  if (tokenAdminCache) return tokenAdminCache;
+  if (!ADMIN_PASSWORD) return null;
+  try {
+    const res = await fetch(`${URL_.usuarios}/auth/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }), signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) tokenAdminCache = (await res.json()).token;
+  } catch { /* sin usuarios-service no hay token: los pedidos darán 401 y la prueba lo informará */ }
+  return tokenAdminCache;
+}
+
 async function http(metodo, url, cuerpo, { mostrar = true, timeout = 8000 } = {}) {
+  const token = await tokenAdmin();
   if (mostrar) {
-    const d = cuerpo !== undefined ? ` -H "content-type: application/json" -d '${JSON.stringify(cuerpo)}'` : '';
-    out(gris(`  $ curl -s -X ${metodo} ${url}${d}`));
+    const h = token ? ' -H "Authorization: Bearer <token de ADMIN>"' : '';
+    const d = cuerpo !== undefined ? ` -H "content-type: application/json" -d '${JSON.stringify(cuerpo).replace(/"password":"[^"]*"/g, '"password":"***"')}'` : '';
+    out(gris(`  $ curl -s -X ${metodo} ${url}${h}${d}`));
   }
   let res;
   try {
     res = await fetch(url, {
       method: metodo,
-      headers: cuerpo !== undefined ? { 'content-type': 'application/json' } : undefined,
+      headers: { ...(cuerpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
       signal: AbortSignal.timeout(timeout),
     });
@@ -195,7 +216,7 @@ const unico = () => `${SUF}${(contador += 1)}`;
 const dniAleatorio = () => String(10000000 + Math.floor(Math.random() * 89999999));
 const datosUsuario = (extra = {}) => {
   const u = unico();
-  return { nombre: 'Prueba', apellido: `Tp6${u}`, email: `tp6.${u}@example.com`, dni: dniAleatorio(), fechaNacimiento: '1995-04-12', direccion: 'Calle Falsa 123', ...extra };
+  return { nombre: 'Prueba', apellido: `Tp6${u}`, email: `tp6.${u}@example.com`, dni: dniAleatorio(), fechaNacimiento: '1995-04-12', direccion: 'Calle Falsa 123', password: 'Clave-Prueba-Tp6-1', ...extra };
 };
 const datosEvento = (aforoTotal = 5) => ({
   nombre: `Evento TP6 ${unico()}`, fecha: new Date(Date.now() + 30 * 864e5).toISOString(), lugar: 'Sala TP6', precio: 2500, aforoTotal,

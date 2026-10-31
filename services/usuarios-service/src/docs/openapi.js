@@ -1,3 +1,4 @@
+const { aplicarSeguridad } = require('./seguridad');
 // Contrato OpenAPI de usuarios-service. Debe coincidir con el comportamiento real.
 const idParam = {
   in: 'path',
@@ -39,7 +40,7 @@ const cuerpoUsuario = {
   content: { 'application/json': { schema: { $ref: '#/components/schemas/UsuarioEntrada' } } },
 };
 
-module.exports = {
+const spec = {
   openapi: '3.0.3',
   info: {
     title: 'usuarios-service',
@@ -54,7 +55,7 @@ module.exports = {
   servers: [{ url: '/' }],
   tags: [
     { name: 'Usuarios', description: 'CRUD de usuarios con baja lógica' },
-    { name: 'Autenticación', description: 'Login y emisión de JWT (HS256)' },
+    { name: 'Autenticación', description: 'Registro, login y emisión de JWT (HS256). Endpoints públicos' },
     { name: 'Salud', description: 'Estado del servicio' },
   ],
   paths: {
@@ -77,6 +78,27 @@ module.exports = {
               },
             },
           },
+        },
+      },
+    },
+    '/auth/register': {
+      post: {
+        tags: ['Autenticación'],
+        summary: 'Registrarse (auto-registro, siempre crea un USER)',
+        description:
+          'Endpoint público. Valida los datos, impide email y DNI duplicados, guarda la contraseña como hash bcrypt ' +
+          '(el salt lo maneja la biblioteca) y devuelve el usuario SIN contraseña ni hash. El rol lo fija el servidor: ' +
+          'un `role` enviado en el cuerpo se ignora, así que nadie puede registrarse como ADMIN. Un ADMIN se crea por seed ' +
+          'o con `POST /usuarios` (solo ADMIN).',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/RegistroEntrada' } } },
+        },
+        responses: {
+          201: usuarioOk('Usuario registrado (rol USER, activo)'),
+          400: errorValidacion,
+          409: duplicado,
+          503: dbNoDisponible,
         },
       },
     },
@@ -137,8 +159,12 @@ module.exports = {
       },
       post: {
         tags: ['Usuarios'],
-        summary: 'Crear un usuario (queda activo)',
-        requestBody: cuerpoUsuario,
+        summary: 'Alta administrada de un usuario (queda activo)',
+        description: 'Solo ADMIN. Permite elegir el rol, y es el camino para crear otro ADMIN. La contraseña se guarda como hash bcrypt.',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/UsuarioAdminEntrada' } } },
+        },
         responses: { 201: usuarioOk('Usuario creado'), 400: errorValidacion, 409: duplicado, 503: dbNoDisponible },
       },
     },
@@ -191,6 +217,7 @@ module.exports = {
           fechaNacimiento: { type: 'string', example: '1990-05-14', description: 'Formato YYYY-MM-DD' },
           edad: { type: 'integer', example: 36, description: 'Calculada a partir de fechaNacimiento (no se guarda)' },
           direccion: { type: 'string', example: 'San Martín 123, Mendoza' },
+          role: { type: 'string', enum: ['USER', 'ADMIN'], example: 'USER', description: 'Rol de autorización. Nunca se devuelve la contraseña ni su hash' },
           activo: { type: 'boolean', example: true },
           createdAt: { type: 'string', format: 'date-time' },
           updatedAt: { type: 'string', format: 'date-time' },
@@ -207,6 +234,29 @@ module.exports = {
           fechaNacimiento: { type: 'string', example: '1990-05-14', description: 'YYYY-MM-DD, fecha real y no futura' },
           direccion: { type: 'string', maxLength: 200, example: 'San Martín 123, Mendoza' },
         },
+      },
+      RegistroEntrada: {
+        allOf: [
+          { $ref: '#/components/schemas/UsuarioEntrada' },
+          {
+            type: 'object',
+            required: ['password'],
+            properties: {
+              password: { type: 'string', format: 'password', minLength: 8, maxLength: 72, description: 'Entre 8 caracteres y 72 bytes (límite de bcrypt). Nunca se guarda ni se devuelve' },
+            },
+          },
+        ],
+      },
+      UsuarioAdminEntrada: {
+        allOf: [
+          { $ref: '#/components/schemas/RegistroEntrada' },
+          {
+            type: 'object',
+            properties: {
+              role: { type: 'string', enum: ['USER', 'ADMIN'], default: 'USER', description: 'Solo un ADMIN puede elegir el rol al dar de alta' },
+            },
+          },
+        ],
       },
       LoginEntrada: {
         type: 'object',
@@ -235,3 +285,12 @@ module.exports = {
     },
   },
 };
+
+// TP7: esquema Bearer, endpoints protegidos con su rol y respuestas 401 y 403 (ver ./seguridad.js).
+module.exports = aplicarSeguridad(spec, {
+  'GET /usuarios': { acceso: 'Requiere rol ADMIN' },
+  'POST /usuarios': { acceso: 'Requiere rol ADMIN (alta administrada)' },
+  'GET /usuarios/{id}': { acceso: 'Requiere un token válido. Un USER solo puede ver su propio perfil (id = su sub); un ADMIN el de cualquiera' },
+  'PUT /usuarios/{id}': { acceso: 'Requiere un token válido. Un USER solo puede modificar su propio perfil y no puede cambiar role ni activo; un ADMIN el de cualquiera' },
+  'DELETE /usuarios/{id}': { acceso: 'Requiere rol ADMIN' },
+}, "Autenticación (TP7): este servicio es la ÚNICA autoridad sobre las credenciales y el ÚNICO que emite tokens. Flujo: 1) `POST /auth/register` (o el seed) 2) `POST /auth/login` devuelve el JWT 3) botón **Authorize** y pegar el token 4) los endpoints marcados con 🔒 ya se pueden probar. `/auth/register`, `/auth/login`, `/health` y `/api-docs` son públicos. El mismo token sirve en eventos-service y entradas-service.");

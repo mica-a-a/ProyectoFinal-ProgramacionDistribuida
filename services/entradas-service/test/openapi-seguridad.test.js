@@ -1,0 +1,78 @@
+// TP7 (sección 16) - La documentación OpenAPI de entradas-service coincide con su comportamiento real.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const { firmar, bearer } = require('./helpers/token'); // fija JWT_SECRET de prueba
+const { makeModel } = require('./helpers/fakeModels');
+
+const src = (p) => path.join(__dirname, '..', 'src', p);
+const injectar = (modulo, exports) => { require.cache[require.resolve(src(modulo))] = { id: src(modulo), filename: src(modulo), loaded: true, exports }; };
+
+process.env.SERVICE_NAME = 'entradas-service';
+process.env.LOG_LEVEL = 'error';
+process.env.MONGODB_URI = 'mongodb://fake';
+process.env.USUARIOS_SERVICE_URL = 'http://127.0.0.1:1';
+process.env.EVENTOS_SERVICE_URL = 'http://127.0.0.1:1';
+injectar('models/Orden.js', makeModel({ estado: 'PENDIENTE', precioUnitario: null, motivoRechazo: null }));
+injectar('models/Ticket.js', makeModel({ estado: 'VALIDO', usadoEn: null }));
+injectar('config/db.js', { requireDb: (req, res, next) => next(), connectWithRetry: async () => {} });
+const app = require('../src/app');
+
+const USER = firmar({ sub: 'u1', role: 'USER' });
+
+async function conServidor(fn) {
+  const server = app.listen(0);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const http = async (metodo, ruta, cuerpo, token) => {
+    const res = await fetch(base + ruta, { method: metodo, headers: { 'content-type': 'application/json', ...(token ? bearer(token) : {}) }, body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) });
+    await res.text();
+    return { status: res.status };
+  };
+  try { await fn(http); } finally { server.close(); }
+}
+
+const openapi = require('../src/docs/openapi');
+
+const operaciones = Object.entries(openapi.paths).flatMap(([ruta, v]) => Object.entries(v).map(([m, op]) => ({ metodo: m.toUpperCase(), ruta, op })));
+const protegidas = operaciones.filter((o) => o.op.security);
+const soloAdmin = protegidas.filter((o) => /Requiere rol ADMIN/.test(o.op.description));
+const concreta = (ruta) => ruta.replace(/\{id\}/g, 'a'.repeat(24));
+
+test('Swagger define el esquema de seguridad Bearer JWT', () => {
+  assert.deepEqual(
+    { type: openapi.components.securitySchemes.bearerAuth.type, scheme: openapi.components.securitySchemes.bearerAuth.scheme, bearerFormat: openapi.components.securitySchemes.bearerAuth.bearerFormat },
+    { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
+  );
+  assert.ok(protegidas.length > 0, 'ningún endpoint declara seguridad');
+});
+
+test('todo endpoint protegido documenta 401 y el rol o condición exigida; los de rol/propiedad documentan 403', () => {
+  for (const { metodo, ruta, op } of protegidas) {
+    assert.ok(op.responses[401], `${metodo} ${ruta} no documenta 401`);
+    assert.match(op.description, /Requiere/, `${metodo} ${ruta} no documenta qué se exige`);
+    if (!/cualquier rol/.test(op.description)) assert.ok(op.responses[403], `${metodo} ${ruta} no documenta 403`);
+  }
+});
+
+test('la documentación coincide con el comportamiento: sin token, cada endpoint protegido responde 401', async () => {
+  await conServidor(async (http) => {
+    for (const { metodo, ruta } of protegidas) {
+      const r = await http(metodo, concreta(ruta), ['POST', 'PUT', 'PATCH'].includes(metodo) ? {} : undefined, null);
+      assert.equal(r.status, 401, `${metodo} ${ruta} debería responder 401 sin token`);
+    }
+  });
+});
+
+test('la documentación coincide con el comportamiento: un USER recibe 403 en los endpoints "Requiere rol ADMIN"', async () => {
+  assert.ok(soloAdmin.length > 0);
+  await conServidor(async (http) => {
+    for (const { metodo, ruta } of soloAdmin) {
+      const r = await http(metodo, concreta(ruta), ['POST', 'PUT', 'PATCH'].includes(metodo) ? {} : undefined, USER);
+      assert.equal(r.status, 403, `${metodo} ${ruta} debería responder 403 a un USER`);
+    }
+  });
+});
+
+test('los endpoints públicos (salud y autenticación) no declaran seguridad', () => {
+  for (const { ruta, op } of operaciones.filter((o) => /^\/(health|ready|auth)/.test(o.ruta))) assert.ok(!op.security, `${ruta} no debería pedir token`);
+});

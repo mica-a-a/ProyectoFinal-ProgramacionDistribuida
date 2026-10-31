@@ -1,5 +1,5 @@
 // Contrato OpenAPI de entradas-service. Debe coincidir con el comportamiento real del servicio.
-const config = require('../config/config');
+const { aplicarSeguridad } = require('./seguridad');
 
 const json = (schema, example) => ({ 'application/json': { schema, ...(example ? { example } : {}) } });
 const err = (description, code, message) => ({
@@ -16,7 +16,7 @@ const idParam = {
 
 const e503 = err('Dependencia o base de datos no disponible (la causa figura en `code`)', 'DEPENDENCIA_NO_DISPONIBLE', 'eventos-service no está disponible');
 
-module.exports = {
+const spec = {
   openapi: '3.0.3',
   info: {
     title: 'entradas-service',
@@ -29,7 +29,8 @@ module.exports = {
       '**Errores de dependencias:** `404` remoto = error funcional; `409` se propaga; `423` se reintenta y, si persiste, se informa; ' +
       'timeout, DNS, conexión rechazada o `5xx` = `503`; rechazo `4xx` inesperado = `502`.',
   },
-  servers: [{ url: `http://localhost:${config.port}` }],
+  // URL relativa: "Try it out" le pega al mismo host y puerto desde donde se abrió Swagger (local o el puerto publicado por Docker).
+  servers: [{ url: '/' }],
   tags: [
     { name: 'Órdenes', description: 'Compra, consulta y cancelación' },
     { name: 'Entradas', description: 'Tickets del usuario y validación en el ingreso' },
@@ -66,7 +67,7 @@ module.exports = {
           404: err('Usuario o evento inexistente (`USUARIO_NO_ENCONTRADO`, `EVENTO_NO_ENCONTRADO`)', 'USUARIO_NO_ENCONTRADO', 'Usuario no encontrado'),
           409: err('Conflicto de negocio: `USUARIO_INACTIVO`, `MAXIMO_ENTRADAS_EXCEDIDO`, `SIN_AFORO`', 'MAXIMO_ENTRADAS_EXCEDIDO', 'Máximo 4 entradas por usuario y evento (ya tiene 3)'),
           423: err('El evento está ocupado y no se pudo reservar tras los reintentos (la orden queda `RECHAZADA`)', 'EVENTO_OCUPADO', 'El evento está ocupado, intentá nuevamente'),
-          502: err('Un servicio remoto rechazó el pedido o devolvió datos inválidos', 'DEPENDENCIA_RECHAZO', 'eventos-service rechazó el pedido (HTTP 400)'),
+          502: err('Un servicio remoto rechazó el pedido o devolvió datos inválidos. Con `code: DEPENDENCIA_AUTENTICACION` el servicio remoto no aceptó el token propagado (problema de configuración, p. ej. JWT_SECRET distinto), no del cliente', 'DEPENDENCIA_RECHAZO', 'eventos-service rechazó el pedido (HTTP 400)'),
           503: {
             description:
               'Dependencia o base de datos no disponible. `DEPENDENCIA_NO_DISPONIBLE`/`DB_NO_DISPONIBLE`: la orden queda `RECHAZADA` (o no se crea). ' +
@@ -202,3 +203,12 @@ module.exports = {
     },
   },
 };
+
+// TP7: esquema Bearer, endpoints protegidos con su rol y respuestas 401 y 403 (ver ./seguridad.js).
+module.exports = aplicarSeguridad(spec, {
+  'POST /ordenes': { acceso: 'Requiere un token válido. Un USER solo puede comprar para sí mismo (usuarioId = su sub); un ADMIN para cualquiera' },
+  'GET /ordenes/{id}': { acceso: 'Requiere un token válido. Solo el dueño de la orden o un ADMIN' },
+  'DELETE /ordenes/{id}': { acceso: 'Requiere un token válido. Solo el dueño de la orden o un ADMIN' },
+  'GET /entradas': { acceso: 'Requiere un token válido. Un USER solo puede consultar su propio usuarioId; un ADMIN el de cualquiera' },
+  'POST /entradas/validar': { acceso: 'Requiere rol ADMIN (personal de control de acceso)' },
+}, "Autenticación (TP7): los endpoints marcados con 🔒 exigen `Authorization: Bearer <JWT>`. El token se obtiene con `POST /auth/login` de usuarios-service (puerto 3001) y se verifica acá por la firma, sin consultar a Usuarios. Un USER solo opera sobre sus propias órdenes y entradas; un ADMIN sobre todas. Entradas reenvía el token del cliente a usuarios-service y eventos-service.");

@@ -25,7 +25,7 @@ Sistema de venta de entradas para eventos con aforo limitado. Los usuarios regis
 2. **Solo compran usuarios válidos**, con un máximo de entradas por persona.
 3. **Cada entrada se usa una sola vez.**
 
-El repositorio parte de la API REST de Usuarios de los trabajos anteriores (`app-base/`, versión del TP4) y la evoluciona a **tres microservicios** ejecutables con Docker Compose. El diseño y su justificación están en [`docs/arquitectura.md`](docs/arquitectura.md); los cambios entre el diseño (TP5) y lo implementado (TP6) están en su [sección 11](docs/arquitectura.md#11-tp6-arquitectura-implementada-y-cambios-respecto-del-tp5).
+El repositorio parte de la API REST de Usuarios de los trabajos anteriores (`app-base/`, versión del TP4) y la evoluciona a **tres microservicios** ejecutables con Docker Compose. El diseño y su justificación están en [`docs/arquitectura.md`](docs/arquitectura.md); los cambios entre el diseño (TP5) y lo implementado (TP6) están en su [sección 11](docs/arquitectura.md#11-tp6-arquitectura-implementada-y-cambios-respecto-del-tp5). El TP7 agrega **identidad y control de acceso con JWT** sin cambiar la topología: ver [Seguridad](#seguridad-identidad-jwt-y-roles-tp7) y la [sección 12](docs/arquitectura.md#12-tp7-identidad-y-control-de-acceso).
 
 ## Arquitectura implementada
 
@@ -51,10 +51,81 @@ Cliente ──► usuarios-service :3001 ──► usuarios-db (MongoDB)
 
 Reglas de la arquitectura: solo Entradas llama a los otros dos (no hay dependencias circulares), cada servicio tiene su propia base y nadie lee ni escribe datos de otro. Entradas guarda `usuarioId` y `eventoId` solo como referencias lógicas.
 
+## Seguridad: identidad, JWT y roles (TP7)
+
+**Componente responsable de identidad:** `usuarios-service`. Es la **única autoridad sobre las credenciales** (guarda el hash de la contraseña) y el **único que emite tokens**. Ningún otro servicio consulta su base. No se creó un cuarto servicio: Usuarios ya era el dueño de las personas (justificación en [`docs/tp7-hito1-seguridad.md`](docs/tp7-hito1-seguridad.md)).
+
+| Aspecto | Decisión |
+|---|---|
+| Contraseñas | Hash **bcrypt** (`bcryptjs`), costo `BCRYPT_ROUNDS` (12 por defecto), salt manejado por la biblioteca. Nunca se guardan, devuelven ni loguean en texto plano |
+| Token | **JWT HS256** (clave simétrica `JWT_SECRET`, mínimo 32 caracteres). Claims: `sub`, `role`, `iat`, `exp`, `iss`. No lleva contraseña, hash ni datos personales |
+| Vencimiento | Todo token vence: `JWT_EXPIRES_IN` (1 h por defecto). No hay tokens sin `exp` |
+| Validación | Cada servicio verifica la firma, el algoritmo, el emisor y el vencimiento **localmente** (sin consultar a Usuarios), con el mismo middleware |
+| Roles | `USER` y `ADMIN` (campo `role`). El registro **siempre** crea `USER`; el cliente nunca elige su rol. Un `ADMIN` se crea por seed o con `POST /usuarios` (solo ADMIN) |
+| Propiedad del recurso | Un `USER` solo ve y modifica lo suyo (perfil, órdenes y entradas); lo aplica el servicio dueño del recurso |
+| Propagación | Entradas valida el token del cliente y lo **reenvía** a Usuarios y a Eventos. Detalle en [`docs/tp7-propagacion-token.md`](docs/tp7-propagacion-token.md) |
+
+### Roles y permisos (resumen)
+
+| Operación | Público | USER | ADMIN |
+|---|:-:|:-:|:-:|
+| `POST /auth/register`, `POST /auth/login`, `GET /health`, `/api-docs` | Sí | Sí | Sí |
+| `GET /eventos`, `GET /eventos/:id` (catálogo) | Sí | Sí | Sí |
+| Comprar, consultar y cancelar **sus** órdenes; listar **sus** entradas; ver y editar **su** perfil | No | Sí | Sí |
+| Lo anterior sobre recursos **de otra persona** | No | No (403) | Sí |
+| Crear, modificar, cancelar y finalizar eventos | No | No (403) | Sí |
+| Listar, dar de alta y dar de baja usuarios; validar tickets en la puerta | No | No (403) | Sí |
+
+La matriz completa por endpoint (27 endpoints) está en [`docs/tp7-hito1-seguridad.md`](docs/tp7-hito1-seguridad.md).
+
+### Respuestas 401 y 403
+
+| Código | Cuándo | `code` |
+|---|---|---|
+| **401** | No hay identidad válida | `TOKEN_AUSENTE`, `TOKEN_INVALIDO` (mal formado, firma inválida, algoritmo no esperado) o `TOKEN_VENCIDO`; en el login, `CREDENCIALES_INVALIDAS` (mismo mensaje si el usuario no existe o la contraseña es incorrecta) |
+| **403** | Identidad válida sin permiso | `PERMISOS_INSUFICIENTES` (rol insuficiente o recurso ajeno); en el login, `CUENTA_DESHABILITADA` (solo si la contraseña es correcta) |
+| 400 / 409 | Datos inválidos / usuario ya existente | `VALIDACION` / `EMAIL_DUPLICADO`, `DNI_DUPLICADO` |
+
+### Registrar un usuario, iniciar sesión y usar el token
+
+```bash
+# 1) Registro (público): siempre crea un USER
+curl -s -X POST http://localhost:3001/auth/register -H 'content-type: application/json' \
+  -d '{"nombre":"Ana","apellido":"Lopez","email":"ana@example.com","dni":"31222333","fechaNacimiento":"1992-07-21","password":"Clave-Segura-1"}'
+
+# 2) Login: devuelve { "token": "...", "tokenType": "Bearer", "expiresIn": 3600 }
+curl -s -X POST http://localhost:3001/auth/login -H 'content-type: application/json' \
+  -d '{"email":"ana@example.com","password":"Clave-Segura-1"}'
+
+# 3) Usar el token en cualquier servicio
+curl -s http://localhost:3001/usuarios/<id> -H 'Authorization: Bearer <token>'
+```
+
+En PowerShell:
+
+```powershell
+$cuerpo = @{ email = 'ana@example.com'; password = 'Clave-Segura-1' } | ConvertTo-Json
+$token = (Invoke-RestMethod -Method Post -Uri http://localhost:3001/auth/login -ContentType 'application/json' -Body $cuerpo).token
+Invoke-RestMethod -Uri http://localhost:3001/usuarios/<id> -Headers @{ Authorization = "Bearer $token" }
+```
+
+**Usuarios de prueba** (los crea `npm run seed`): `admin@example.com` (rol `ADMIN`, contraseña `SEED_ADMIN_PASSWORD`) y cinco usuarios `USER` (por ejemplo `lucia.fernandez@example.com`, contraseña `SEED_USER_PASSWORD`). Las contraseñas salen del `.env`; en `.env.example` hay valores ficticios.
+
+### Probar los endpoints protegidos desde Swagger
+
+1. Abrir el Swagger de Usuarios: http://localhost:3001/api-docs.
+2. `POST /auth/login` → **Try it out** → enviar las credenciales → copiar el valor de `token`.
+3. Botón **Authorize** (arriba a la derecha) → pegar **solo el token** (sin la palabra `Bearer`) → **Authorize**.
+4. Ahora los endpoints con el candado 🔒 se pueden probar. El mismo token sirve en los Swagger de Eventos (http://localhost:3002/api-docs) y de Entradas (http://localhost:3003/api-docs); cada endpoint indica el rol que exige y sus respuestas 401 y 403.
+
+### Secretos
+
+`JWT_SECRET` es obligatorio y **no tiene valor por defecto**: `docker compose up` falla con un mensaje claro si falta. Se define una sola vez en el `.env` de la raíz y el Compose se lo entrega a los tres servicios. Ningún `.env` real, secreto ni token se versiona. Los logs registran `sub` y `role` de cada pedido autenticado, y nunca el token ni las contraseñas.
+
 ## Requisitos de software
 
 - **Docker** (Docker Desktop con WSL 2 en Windows, o Docker Engine + plugin Compose en Linux) y Git.
-- **Node.js 20 o superior**, solo para el script de pruebas y para ejecutar un servicio sin Docker.
+- **Node.js 20.19 o superior**, solo para los scripts de pruebas, los tests unitarios y para ejecutar un servicio sin Docker (Entradas lo exige: `engines` de su `package.json`).
 - Para ejecutar sin Docker: MongoDB y Redis (o Memurai en Windows).
 
 ### Verificar Docker
@@ -71,10 +142,25 @@ docker run --rm hello-world
 ```bash
 git clone <URL del repositorio>
 cd ProyectoFinal-ProgramacionDistribuida
-cp .env.example .env              # Windows: copy .env.example .env  (es opcional: todo tiene valor por defecto)
+cp .env.example .env              # Windows: copy .env.example .env
+# Completar JWT_SECRET en el .env (OBLIGATORIO, mínimo 32 caracteres). Para generar uno:
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 docker compose up --build -d      # construye e inicia toda la solución
 docker compose ps                 # los 7 contenedores deben figurar "healthy"
+docker compose exec -T usuarios-service npm run seed   # usuarios y administrador de prueba
+docker compose exec -T eventos-service npm run seed    # eventos de prueba
 ```
+
+En PowerShell, para escribir el secreto en el `.env` sin abrir el archivo:
+
+```powershell
+$secreto = node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+(Get-Content .env) -replace '^JWT_SECRET=.*', "JWT_SECRET=$secreto" | Set-Content .env
+```
+
+Sin `JWT_SECRET`, `docker compose up` se detiene con el mensaje `required variable JWT_SECRET is missing a value`.
+
+> **Guía paso a paso** (con y sin Docker), pruebas manuales y automáticas con los resultados esperados, y solución de problemas: [`docs/guia-instalacion-y-pruebas.md`](docs/guia-instalacion-y-pruebas.md).
 
 ### Puertos publicados hacia tu PC y URLs
 
@@ -90,8 +176,9 @@ Si ya tenés algo en 3001 a 3003, cambiá `USUARIOS_HOST_PORT`, `EVENTOS_HOST_PO
 
 ## Variables de entorno
 
-- **`.env` de la raíz:** solo lo lee Docker Compose. Plantilla en [`.env.example`](.env.example): `IMAGE_PREFIX`, `LOG_LEVEL`, `*_HOST_PORT`, `JWT_SECRET` (obligatoria, sin default), `JWT_EXPIRES_IN` (default `1h`), `LOCK_TTL_MS`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
+- **`.env` de la raíz:** solo lo lee Docker Compose. Plantilla en [`.env.example`](.env.example): `IMAGE_PREFIX`, `LOG_LEVEL`, `*_HOST_PORT`, `JWT_SECRET` (obligatoria, sin default, mínimo 32 caracteres), `JWT_EXPIRES_IN` (default `1h`), `BCRYPT_ROUNDS` (default `12`), `SEED_USER_PASSWORD` y `SEED_ADMIN_PASSWORD` (contraseñas **ficticias** de los usuarios del seed), `LOCK_TTL_MS`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
 - **`.env` de cada servicio** (solo para ejecución sin Docker): `services/<servicio>/.env.example`. Variables: `SERVICE_NAME`, `PORT`, `LOG_LEVEL`, `MONGODB_URI`, y según el servicio `REDIS_URL`, `LOCK_TTL_MS`, `USUARIOS_SERVICE_URL`, `EVENTOS_SERVICE_URL`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
+- Para ejecutar un servicio **sin Docker** con `npm start`, el `.env` de cada servicio también necesita `JWT_SECRET` (el **mismo** valor en los tres) y, en Usuarios, `JWT_EXPIRES_IN`, `JWT_ISSUER` y `BCRYPT_ROUNDS`.
 - Ningún `.env` real se sube a Git. No hay contraseñas, tokens ni claves en los Dockerfile, en el Compose ni en el código.
 
 ### Diferencias entre ejecución local y Docker Compose
@@ -149,6 +236,38 @@ docker compose down -v     # elimina contenedores y BORRA los volúmenes (reinic
 
 ## Pruebas
 
+### Pruebas del TP7 (seguridad)
+
+Requieren la solución levantada y los seeds aplicados (ver *Inicio rápido*). Cada escenario imprime los comandos que ejecuta y guarda su salida en [`docs/evidencias/tp7/`](docs/evidencias/tp7/); los tokens, contraseñas y hashes salen **enmascarados**, así que las evidencias se pueden versionar.
+
+```bash
+node scripts/tp7/pruebas.js todo         # escenarios A a L de la consigna, con resumen
+node scripts/tp7/pruebas.js C            # un escenario puntual (A..L)
+node scripts/tp7/propagacion.js todo     # propagación del token, disponibilidad y logs sin secretos
+cd services/<servicio> && npm test       # tests unitarios y de API de cada servicio
+```
+
+| Escenario | Qué demuestra |
+|---|---|
+| **A** Registro | Usuario creado sin contraseña ni hash en la respuesta; el cliente no puede elegir su rol |
+| **B** Duplicado | `409` por email y por DNI repetidos |
+| **C** Login válido | `200` con un JWT HS256 con `sub`, `role`, `iat`, `exp` e `iss`, y vencimiento |
+| **D** Login inválido | `401` con password incorrecta (mismo mensaje que si el usuario no existe), `400`, y `403` si la cuenta está deshabilitada |
+| **E** Sin token | `401 TOKEN_AUSENTE` en los tres servicios; lo público sigue público |
+| **F** Token modificado | `401` ante payload alterado, firma de otra clave, `alg: none` y algoritmo no esperado |
+| **G** Token vencido | `401 TOKEN_VENCIDO`; un token sin `exp` tampoco se acepta |
+| **H** Sin rol suficiente | `403` para un USER en operaciones de ADMIN y sobre recursos de otro usuario |
+| **I** Rol autorizado | Las operaciones de USER y de ADMIN se ejecutan correctamente |
+| **J** Dos servicios | La identidad viaja Entradas → Usuarios/Eventos y queda en los logs de cada servicio |
+| **K** Reinicio | Tras `docker compose down` y `up`, los usuarios persisten y el sistema vuelve a autenticar |
+| **L** Persistencia | La contraseña está guardada como hash bcrypt y no en texto plano |
+
+Detalle de la propagación, la disponibilidad ante la caída de Usuarios y las limitaciones asumidas en [`docs/tp7-propagacion-token.md`](docs/tp7-propagacion-token.md).
+
+### Pruebas del TP6 (siguen vigentes)
+
+Operan como el administrador del seed (necesitan `SEED_ADMIN_PASSWORD` en el `.env` y los seeds aplicados).
+
 ```bash
 node scripts/tp6/pruebas.js              # lista las pruebas disponibles
 node scripts/tp6/pruebas.js todo         # corre todas, en orden, y guarda la evidencia
@@ -173,7 +292,7 @@ Cada prueba imprime los comandos que ejecuta y guarda su salida en `docs/evidenc
 
 `node scripts/tp6/pruebas.js datos` deja siempre el mismo estado inicial (equivale a ejecutar `npm run seed` dentro de `usuarios-service` y `eventos-service`):
 
-- **Usuarios:** 5, con IDs fijos `64b000000000000000000001` a `05` (el `04` está inactivo).
+- **Usuarios:** 5 `USER`, con IDs fijos `64b000000000000000000001` a `05` (el `04` está inactivo), más el administrador `admin@example.com` (`ADMIN`, id `64b000000000000000000006`). Las contraseñas salen de `SEED_USER_PASSWORD` y `SEED_ADMIN_PASSWORD`.
 - **Eventos:** 5 (Taller de Node.js con 5 lugares, Recital con 100, uno agotado, uno cancelado y uno finalizado).
 - **Entradas:** sin órdenes ni tickets.
 
@@ -242,9 +361,28 @@ Es la API del TP4 (HTTPS, MongoDB, Redis, Swagger y cluster de tres nodos con Ra
 - La rama principal es `main`; no se desarrolla directamente sobre ella.
 - Cada tarea se hace en una rama propia (`feature/...`, `docs/...`, `fix/...`) y se integra con **Pull Request** revisado por otro integrante.
 - Los mensajes de commit describen cambios concretos.
-- Cada entrega queda marcada con un tag (`tp5-entrega`, `tp6-entrega`).
+- Cada entrega queda marcada con un tag (`tp5-entrega`, `tp6-entrega`, `tp7-entrega`).
 
 Detalle en [`docs/flujo-git.md`](docs/flujo-git.md).
+
+## Entregables del TP7 y dónde encontrarlos
+
+| # | Requisito (sección 21) | Dónde está |
+|---|------------------------|-----------|
+| 1 | Integrantes del grupo | Sección *Integrantes* |
+| 2 | Arquitectura actual y componente responsable de identidad | Sección *Seguridad* y [`docs/arquitectura.md` §12](docs/arquitectura.md#12-tp7-identidad-y-control-de-acceso) |
+| 3 | Roles y permisos implementados | Sección *Roles y permisos* y [`docs/tp7-hito1-seguridad.md`](docs/tp7-hito1-seguridad.md) (matrices de las secciones 4, 10 y 11 de la consigna) |
+| 4 | Variables de entorno necesarias | Sección *Variables de entorno* y [`.env.example`](.env.example) |
+| 5 | Cómo iniciar la solución con Docker Compose | Sección *Inicio rápido* |
+| 6 | Cómo registrar o dar de alta un usuario | *Registrar un usuario, iniciar sesión y usar el token* |
+| 7 | Cómo realizar login | Ídem |
+| 8 | Cómo usar el token en endpoints protegidos | Ídem y *Probar los endpoints protegidos desde Swagger* |
+| 9 | Ubicación de Swagger/OpenAPI | `/api-docs` de cada servicio (`src/docs/openapi.js`), con esquema Bearer, roles y respuestas 401/403 |
+| 10 | Cómo ejecutar las pruebas obligatorias | Sección *Pruebas del TP7* (escenarios A a L) |
+| 11 | Decisiones de propagación y validación del JWT | [`docs/tp7-propagacion-token.md`](docs/tp7-propagacion-token.md) |
+| 12 | Evidencias de las pruebas | [`docs/evidencias/tp7/`](docs/evidencias/tp7/) |
+| 13 | Tag de entrega | `tp7-entrega` |
+| 14 | Guía de instalación y pruebas | [`docs/guia-instalacion-y-pruebas.md`](docs/guia-instalacion-y-pruebas.md) |
 
 ## Entregables del TP6 y dónde encontrarlos
 

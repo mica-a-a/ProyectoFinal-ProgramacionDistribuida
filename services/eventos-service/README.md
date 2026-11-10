@@ -34,6 +34,7 @@ docker run -d --name eventos-redis -p 6379:6379 redis
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017/eventos` | Base propia (Compose: `mongodb://eventos-db:27017/eventos`) |
 | `REDIS_URL` | `redis://localhost:6379` | Redis para el lock por evento (Compose: `redis://redis:6379`) |
 | `LOCK_TTL_MS` | `5000` | TTL del lock en milisegundos |
+| `EVENTOS_SERVICE_TOKEN_SECRET` | Secreto aleatorio de 48 bytes | Verifica la identidad técnica de entradas-service; debe coincidir con Entradas y ser distinto de `JWT_SECRET` |
 
 ## Endpoints
 
@@ -53,6 +54,8 @@ Swagger UI: `http://localhost:3002/api-docs`
 | GET | `/ready` | Estado de MongoDB y Redis | 200, 503 |
 
 Los errores tienen la forma `{ "message": "...", "code": "..." }`. Códigos de negocio: `SIN_AFORO`, `EVENTO_NO_VENDIBLE`, `REFERENCIA_CONFLICTIVA`, `CANTIDAD_INCONSISTENTE`, `AFORO_MENOR_A_VENDIDO`, `EVENTO_NO_MODIFICABLE`, `TRANSICION_INVALIDA`, `LOCK_OCUPADO`.
+
+Los POST de reserva y liberación son internos: requieren una credencial técnica de un minuto firmada por `entradas-service`. Los JWT de usuarios (incluido ADMIN) no autorizan esas rutas. Ambos servicios deben compartir `EVENTOS_SERVICE_TOKEN_SECRET`, distinto de `JWT_SECRET`.
 
 ## Reglas de negocio
 

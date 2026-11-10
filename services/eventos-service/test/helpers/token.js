@@ -2,6 +2,7 @@
 // (HS256, claims sub / role / iat / exp / iss). Mismo archivo en los tres servicios.
 // Fija JWT_SECRET (solo para tests) al cargarse, así que hay que requerirlo ANTES de cargar la app.
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'secreto-de-prueba-de-al-menos-32-caracteres!!';
+process.env.EVENTOS_SERVICE_TOKEN_SECRET = process.env.EVENTOS_SERVICE_TOKEN_SECRET || 'secreto-interno-de-prueba-de-32-caracteres!!';
 const jwt = require('jsonwebtoken');
 
 const ID_DEFAULT = '64b000000000000000000001';
@@ -26,6 +27,16 @@ function adulterado({ sub = ID_DEFAULT } = {}) {
   return `${h}.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.${f}`;
 }
 
+function firmarServicio({ service = 'entradas-service', expiresIn = 60, secret = process.env.EVENTOS_SERVICE_TOKEN_SECRET } = {}) {
+  return jwt.sign({ service }, secret, {
+    algorithm: 'HS256',
+    subject: service,
+    issuer: service,
+    audience: 'eventos-service',
+    expiresIn,
+  });
+}
+
 const bearer = (token) => ({ Authorization: `Bearer ${token}` });
 
-module.exports = { firmar, vencido, adulterado, bearer, ID_DEFAULT };
+module.exports = { firmar, vencido, adulterado, firmarServicio, bearer, ID_DEFAULT };

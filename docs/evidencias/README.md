@@ -50,3 +50,5 @@ Guardar en esta carpeta las capturas que respaldan los entregables del TP5.
 ![Docker Hello World-Bazan](tp6-01b-docker-hello-world-Bazan.png)
 ![Docker Hello World-Gorri](tp6-01b-docker-hello-world-Gorri.png)
 ![Docker Hello World-Nievas](tp6-01b-docker-hello-world-Nievas.png)
+Select-String SEED .env
+

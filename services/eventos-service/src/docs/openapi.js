@@ -190,6 +190,6 @@ module.exports = aplicarSeguridad(spec, {
   'PUT /eventos/{id}': { acceso: 'Requiere rol ADMIN' },
   'PATCH /eventos/{id}/cancelar': { acceso: 'Requiere rol ADMIN' },
   'PATCH /eventos/{id}/finalizar': { acceso: 'Requiere rol ADMIN' },
-  'POST /eventos/{id}/reservar-aforo': { acceso: 'Requiere un token válido (cualquier rol). Operación interna de entradas-service', forbidden: false },
-  'POST /eventos/{id}/liberar-aforo': { acceso: 'Requiere un token válido (cualquier rol). Operación interna de entradas-service', forbidden: false },
-}, "Autenticación (TP7): los endpoints marcados con 🔒 exigen `Authorization: Bearer <JWT>`. El token se obtiene con `POST /auth/login` de usuarios-service (puerto 3001) y se verifica acá por la firma, sin consultar a Usuarios. El catálogo (`GET /eventos`) es público. Gestionar eventos exige rol ADMIN; `reservar-aforo` y `liberar-aforo` son internos (los invoca entradas-service reenviando el token del comprador) y aceptan cualquier rol.");
+  'POST /eventos/{id}/reservar-aforo': { acceso: 'Requiere una credencial técnica válida de entradas-service', forbidden: false },
+  'POST /eventos/{id}/liberar-aforo': { acceso: 'Requiere una credencial técnica válida de entradas-service', forbidden: false },
+}, "Autenticación (TP7): los endpoints de usuario marcados con 🔒 exigen `Authorization: Bearer <JWT>`. El token se obtiene con `POST /auth/login` de usuarios-service (puerto 3001) y se verifica acá por la firma, sin consultar a Usuarios. El catálogo (`GET /eventos`) es público. Gestionar eventos exige rol ADMIN; reservar/liberar aforo requiere una credencial técnica de corta duración que solo puede emitir entradas-service.");

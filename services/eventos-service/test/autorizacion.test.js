@@ -2,11 +2,12 @@
 // Usa los mismos repositorios en memoria que api.test.js. Corre con `npm test`.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { firmar, vencido, adulterado, bearer } = require('./helpers/token'); // fija JWT_SECRET de prueba
+const { firmar, vencido, adulterado, firmarServicio, bearer } = require('./helpers/token'); // fija secretos de prueba
 const { armar, datosEvento } = require('./helpers/armar');
 
 const ADMIN = firmar({ sub: 'admin1', role: 'ADMIN' });
 const USER = firmar({ sub: 'u1', role: 'USER' });
+const SERVICE = firmarServicio();
 const ID_INEXISTENTE = 'a'.repeat(24);
 
 // token: null = sin encabezado Authorization.
@@ -84,14 +85,47 @@ test('H: USER no puede gestionar eventos -> 403 PERMISOS_INSUFICIENTES', () =>
     }
   }));
 
-test('I: ADMIN crea un evento (201) y USER puede reservar y liberar aforo (cualquier rol autenticado)', () =>
+test('solo la identidad técnica de entradas-service puede reservar y liberar aforo', () =>
   conServidor(async (http) => {
     const creado = await http('POST', '/eventos', datosEvento({ aforoTotal: 3 }), ADMIN);
     assert.equal(creado.status, 201);
     const id = creado.body.id;
 
-    const reserva = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 2, referencia: 'o1' }, USER);
+    for (const token of [USER, ADMIN]) {
+      const reservaRechazada = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 1, referencia: 'user-attempt' }, token);
+      assert.equal(reservaRechazada.status, 401);
+      assert.equal(reservaRechazada.body.code, 'TOKEN_SERVICIO_INVALIDO');
+      const liberaRechazada = await http('POST', `/eventos/${id}/liberar-aforo`, { cantidad: 1, referencia: 'user-attempt' }, token);
+      assert.equal(liberaRechazada.status, 401);
+      assert.equal(liberaRechazada.body.code, 'TOKEN_SERVICIO_INVALIDO');
+    }
+
+    const reserva = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 2, referencia: 'o1' }, SERVICE);
     assert.equal(reserva.status, 200);
-    const libera = await http('POST', `/eventos/${id}/liberar-aforo`, { cantidad: 2, referencia: 'o1' }, USER);
+    const libera = await http('POST', `/eventos/${id}/liberar-aforo`, { cantidad: 2, referencia: 'o1' }, SERVICE);
     assert.equal(libera.status, 200);
+  }));
+
+test('credencial técnica de otro servicio se rechaza', () =>
+  conServidor(async (http) => {
+    const otroServicio = firmarServicio({ service: 'usuarios-service' });
+    const r = await http('POST', `/eventos/${ID_INEXISTENTE}/reservar-aforo`, { cantidad: 1, referencia: 'o1' }, otroServicio);
+    assert.equal(r.status, 401);
+    assert.equal(r.body.code, 'TOKEN_SERVICIO_INVALIDO');
+  }));
+
+test('JWT firmado con la clave de usuarios-service no suplanta la identidad técnica', () =>
+  conServidor(async (http) => {
+    const firmadoConClaveUsuario = firmarServicio({ secret: process.env.JWT_SECRET });
+    const r = await http('POST', `/eventos/${ID_INEXISTENTE}/reservar-aforo`, { cantidad: 1, referencia: 'o1' }, firmadoConClaveUsuario);
+    assert.equal(r.status, 401);
+    assert.equal(r.body.code, 'TOKEN_SERVICIO_INVALIDO');
+  }));
+
+test('credencial técnica vencida se rechaza', () =>
+  conServidor(async (http) => {
+    const vencida = firmarServicio({ expiresIn: -1 });
+    const r = await http('POST', `/eventos/${ID_INEXISTENTE}/liberar-aforo`, { cantidad: 1, referencia: 'o1' }, vencida);
+    assert.equal(r.status, 401);
+    assert.equal(r.body.code, 'TOKEN_SERVICIO_VENCIDO');
   }));

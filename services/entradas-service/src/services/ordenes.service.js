@@ -53,7 +53,7 @@ async function marcarRechazada(orden, motivo) {
 // -------------------------------------------------------------------
 // Comprar entradas (caso de uso 1 del TP5, sección 8.1)
 // -------------------------------------------------------------------
-// `ctx` = contexto de identidad del pedido ({ authorization }): se reenvía a Usuarios y a Eventos (TP7, sección 13).
+// `ctx` = token de usuario: se propaga en consultas. Eventos usa credencial técnica para modificar aforo.
 async function crearOrden(body = {}, ctx = {}) {
   const usuarioId = normalizarId(body.usuarioId, 'usuarioId');
   const eventoId = normalizarId(body.eventoId, 'eventoId');
@@ -113,7 +113,7 @@ async function crearOrden(body = {}, ctx = {}) {
 
   // 5) Eventos (único dueño del aforo) reserva los lugares. Idempotente por referencia.
   try {
-    await conReintentoLock(() => eventosClient.reservarAforo(eventoId, { cantidad, referencia: ordenId }, ctx));
+    await conReintentoLock(() => eventosClient.reservarAforo(eventoId, { cantidad, referencia: ordenId }));
   } catch (err) {
     if (esIncierto(err)) {
       // No sabemos si Eventos llegó a descontar: la orden queda PENDIENTE para poder recuperarla.
@@ -142,7 +142,7 @@ async function crearOrden(body = {}, ctx = {}) {
     logger.error('falló la emisión de tickets, se intenta compensar el aforo', { ordenId, message: err.message });
     await Ticket.deleteMany({ ordenId: orden._id }).catch(() => {});
     try {
-      await conReintentoLock(() => eventosClient.liberarAforo(eventoId, { cantidad, referencia: ordenId }, ctx));
+      await conReintentoLock(() => eventosClient.liberarAforo(eventoId, { cantidad, referencia: ordenId }));
       await marcarRechazada(orden, 'ERROR_EMISION_TICKETS');
       throw new AppError(500, 'No se pudieron emitir los tickets; el aforo fue devuelto', 'ERROR_INTERNO');
     } catch (compensacion) {
@@ -201,7 +201,7 @@ async function cancelarOrden(id, ctx = {}) {
   }
 
   try {
-    await conReintentoLock(() => eventosClient.liberarAforo(orden.eventoId, { cantidad: orden.cantidad, referencia: ordenId }, ctx));
+    await conReintentoLock(() => eventosClient.liberarAforo(orden.eventoId, { cantidad: orden.cantidad, referencia: ordenId }));
   } catch (err) {
     // La cancelación queda pendiente de reintento: se restauran los tickets.
     await Ticket.updateMany({ ordenId: orden._id, estado: 'ANULADO' }, { estado: 'VALIDO' });

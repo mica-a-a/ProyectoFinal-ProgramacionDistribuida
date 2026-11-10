@@ -537,7 +537,7 @@ El TP7 agrega autenticación y autorización **sin cambiar la topología**: no s
 |---|---|---|
 | `usuarios-service` | Datos personales de las personas | **Además:** credenciales (`passwordHash`, `role`), registro (`POST /auth/register`), login (`POST /auth/login`) y emisión de tokens JWT. Es la única autoridad sobre las credenciales |
 | `eventos-service` | Eventos y aforo, sin noción de identidad | Valida el JWT y exige el rol `ADMIN` para gestionar eventos. Sigue sin consultar la base de usuarios |
-| `entradas-service` | Compra y tickets, sin noción de identidad | Valida el JWT, aplica la regla de propiedad de órdenes y tickets (el `sub` del token debe coincidir con el `usuarioId`) y **propaga el token** a Usuarios y Eventos |
+| `entradas-service` | Compra y tickets, sin noción de identidad | Valida el JWT, aplica la regla de propiedad de órdenes y tickets (el `sub` del token debe coincidir con el `usuarioId`), propaga el token a las consultas y usa identidad técnica para modificar aforo |
 
 ### 12.2 Decisiones de arquitectura
 
@@ -548,12 +548,13 @@ El TP7 agrega autenticación y autorización **sin cambiar la topología**: no s
 | Firma | HS256 con `JWT_SECRET`, compartido por variable de entorno desde el `.env` raíz |
 | Claims | `sub`, `role`, `iat`, `exp` e `iss`. Sin contraseña, hash ni datos personales |
 | Roles | `USER` y `ADMIN` |
-| Propagación | Entradas reenvía el `Authorization: Bearer` del cliente a Usuarios y a Eventos |
+| Propagación | Entradas reenvía el token del cliente a Usuarios y a Eventos solo para consultas; las escrituras de aforo usan una credencial técnica propia |
+| Identidad interna | Para `reservar-aforo` y `liberar-aforo`, Entradas firma un JWT HS256 de un minuto con `EVENTOS_SERVICE_TOKEN_SECRET`, con identidad `entradas-service` y audiencia `eventos-service`; la clave solo se entrega a esos dos servicios |
 | Reglas de negocio | Siguen en su servicio dueño. Usuarios solo emite una identidad; no decide quién ve una orden ni quién gestiona eventos |
 
 ### 12.3 Limitaciones asumidas
 
 - **Sin revocación:** un token emitido es válido hasta que vence (1 hora por defecto), aunque la cuenta se deshabilite después.
 - **Clave simétrica:** cualquier servicio que tenga `JWT_SECRET` podría firmar tokens. Con firma asimétrica (RS256) solo Usuarios podría hacerlo.
-- **`reservar-aforo` y `liberar-aforo`:** exigen un token válido de cualquier rol porque Entradas propaga el del comprador, y el puerto de Eventos está publicado. Un usuario autenticado podría llamarlos directamente. Mejora futura: un rol de servicio o no publicar ese puerto.
+- **Clave simétrica de servicio:** Entradas y Eventos comparten `EVENTOS_SERVICE_TOKEN_SECRET`; la exposición de esa clave permitiría suplantar al servicio. Se mantiene separada de `JWT_SECRET` y no se entrega a Usuarios ni al cliente.
 - **Si Usuarios cae después de emitir un token:** Eventos y Entradas siguen validando tokens. Dejan de funcionar el login, el registro y las compras (Entradas responde `503`, como en el TP6).

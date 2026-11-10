@@ -55,7 +55,7 @@ El `.env` va en la **raíz del repositorio** (junto a `docker-compose.yml`), no 
 cp .env.example .env        # Windows (cmd): copy .env.example .env
 ```
 
-El único valor que **tenés que completar** es `JWT_SECRET` (mínimo 32 caracteres). Es la clave con la que se firman y verifican los tokens; viene vacía a propósito y `docker compose up` no arranca si falta.
+Tenés que completar dos secretos distintos (ambos mínimo 32 caracteres): `JWT_SECRET` para los tokens de usuario y `EVENTOS_SERVICE_TOKEN_SECRET` para la identidad técnica exclusiva de Entradas ante Eventos. Vienen vacíos a propósito y `docker compose up` no arranca si falta alguno.
 
 **Linux / macOS / Git Bash**
 
@@ -71,9 +71,11 @@ grep -Eq '^JWT_SECRET=.{32,}' .env && echo "JWT_SECRET configurado"
 $secreto = node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 (Get-Content .env) -replace '^JWT_SECRET=.*', "JWT_SECRET=$secreto" | Set-Content .env
 (Select-String '^JWT_SECRET=.{32,}' .env) -ne $null      # debe imprimir True
+$secretoServicio = node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+(Get-Content .env) -replace '^EVENTOS_SERVICE_TOKEN_SECRET=.*', "EVENTOS_SERVICE_TOKEN_SECRET=$secretoServicio" | Set-Content .env
 ```
 
-> **No compartas ni subas el `.env` ni lo muestres en capturas.** Está en `.gitignore`. Las demás variables tienen valores por defecto o ficticios que sirven tal cual (puertos 3001–3003, contraseñas del seed `Cambiar-Esta-Clave-1` y `Cambiar-Esta-Clave-Admin-1`).
+> **No compartas ni subas el `.env` ni lo muestres en capturas.** Está en `.gitignore`. Los secretos deben tener valores diferentes. Las demás variables tienen valores por defecto o ficticios que sirven tal cual (puertos 3001–3003, contraseñas del seed `Cambiar-Esta-Clave-1` y `Cambiar-Esta-Clave-Admin-1`).
 
 ### Paso 3 · Construir e iniciar
 
@@ -123,7 +125,7 @@ Seed aplicado: 5 eventos en eventos
 | eventos | http://localhost:3002/health y `/ready` (muestra Mongo y Redis) | http://localhost:3002/api-docs |
 | entradas | http://localhost:3003/health | http://localhost:3003/api-docs |
 
-Cada `/health` responde `{"service":"<nombre>","status":"ok"}`. Abrí los tres Swagger en el navegador: tienen que cargar y mostrar el botón **Authorize**.
+Cada `/health` responde `{"service":"<nombre>","status":"ok"}`. Abrí los tres Swagger en el navegador: tienen que cargar y mostrar el botón **Authorize**. Los POST internos de reservar/liberar aforo en Eventos no se prueban con el token de usuario: deben responder 401; el flujo autorizado se comprueba comprando y cancelando desde Entradas.
 
 ### Paso 7 · Primer uso: registrarse, iniciar sesión y usar el token
 
@@ -190,6 +192,7 @@ npm start
 Reglas importantes:
 
 - **`JWT_SECRET` tiene que ser exactamente el mismo valor en los tres `.env`.** Si difiere, un servicio rechaza los tokens que emitió Usuarios (`401 TOKEN_INVALIDO`) y las compras fallan con `502 DEPENDENCIA_AUTENTICACION`.
+- Para ejecución local sin Docker, `entradas-service` y `eventos-service` también necesitan compartir `EVENTOS_SERVICE_TOKEN_SECRET`, distinto de `JWT_SECRET`.
 - Si falta en Eventos o en Entradas, sus endpoints protegidos responden `500`.
 - Los `.env.example` ya traen los puertos locales: usuarios `3001`, eventos `3002`, entradas `3003`.
 - Entradas necesita que Usuarios y Eventos estén corriendo para poder comprar.
@@ -403,7 +406,7 @@ Select-String -Path docs\evidencias\tp7\*.txt -Pattern 'eyJ'      # no debe devo
 
 | Síntoma | Causa y solución |
 |---|---|
-| `required variable JWT_SECRET is missing a value` | No hay `.env` en la raíz, o `JWT_SECRET` está vacío. Repetí el [Paso 2](#paso-2--crear-el-env-con-el-secreto-del-jwt) |
+| `required variable ... is missing a value` | No hay `.env` en la raíz, o está vacío `JWT_SECRET` o `EVENTOS_SERVICE_TOKEN_SECRET`. Repetí el [Paso 2](#paso-2--crear-el-env-con-el-secreto-del-jwt) |
 | `Bind for 0.0.0.0:3001 failed: port is already allocated` | Otro programa usa el puerto (a menudo un servicio corriendo sin Docker). Detenelo, o cambiá `USUARIOS_HOST_PORT` / `EVENTOS_HOST_PORT` / `ENTRADAS_HOST_PORT` en el `.env` y repetí `docker compose up -d` |
 | El seed dice `Definí SEED_USER_PASSWORD y SEED_ADMIN_PASSWORD` | Faltan en el `.env` raíz. Agregalas (mínimo 8 caracteres) y ejecutá `docker compose up -d` para recrear el contenedor con las variables; después repetí el seed |
 | Login del administrador da `401` | La contraseña no es la que usó el seed. Cambiar el `.env` **no** cambia la base: volvé a ejecutar `docker compose exec -T usuarios-service npm run seed` |

@@ -98,6 +98,8 @@ services:
       # TP7: verifica la firma de los tokens LOCALMENTE (no consulta a usuarios-service). Mismo secreto que el emisor.
       JWT_SECRET: ${JWT_SECRET:?Defini JWT_SECRET en el .env de la raiz (ver .env.example)}
       JWT_ISSUER: usuarios-service
+      # Credencial técnica compartida únicamente con entradas-service.
+      EVENTOS_SERVICE_TOKEN_SECRET: ${EVENTOS_SERVICE_TOKEN_SECRET:?Defini EVENTOS_SERVICE_TOKEN_SECRET en el .env de la raiz}
     ports:
       - "${EVENTOS_HOST_PORT:-3002}:3000"
     depends_on:
@@ -134,6 +136,8 @@ services:
       # TP7: valida el token del cliente LOCALMENTE y lo reenvia a usuarios-service y eventos-service.
       JWT_SECRET: ${JWT_SECRET:?Defini JWT_SECRET en el .env de la raiz (ver .env.example)}
       JWT_ISSUER: usuarios-service
+      # Firma credenciales técnicas para reservar/liberar aforo; no se entrega al cliente ni a usuarios-service.
+      EVENTOS_SERVICE_TOKEN_SECRET: ${EVENTOS_SERVICE_TOKEN_SECRET:?Defini EVENTOS_SERVICE_TOKEN_SECRET en el .env de la raiz}
     ports:
       - "${ENTRADAS_HOST_PORT:-3003}:3000"
     # Solo la base es obligatoria para arrancar. Usuarios y Eventos NO se esperan a proposito:

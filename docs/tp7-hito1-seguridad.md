@@ -57,8 +57,8 @@ Incluye los 25 endpoints que ya existen en la solución más los 2 nuevos de aut
 | eventos | `PUT /eventos/:id` | Restringido | `ADMIN` | Modifica información administrada |
 | eventos | `PATCH /eventos/:id/cancelar` | Restringido | `ADMIN` | Afecta a todos los compradores |
 | eventos | `PATCH /eventos/:id/finalizar` | Restringido | `ADMIN` | Cambia el estado del evento |
-| eventos | `POST /eventos/:id/reservar-aforo` | Autenticado | `USER` o `ADMIN` | Interno: lo invoca Entradas con el token propagado (ver sección 7) |
-| eventos | `POST /eventos/:id/liberar-aforo` | Autenticado | `USER` o `ADMIN` | Interno: ídem |
+| eventos | `POST /eventos/:id/reservar-aforo` | Servicio autenticado | Solo `entradas-service` | Requiere token técnico firmado con `EVENTOS_SERVICE_TOKEN_SECRET` |
+| eventos | `POST /eventos/:id/liberar-aforo` | Servicio autenticado | Solo `entradas-service` | Requiere token técnico firmado con `EVENTOS_SERVICE_TOKEN_SECRET` |
 | eventos | `GET /health`, `GET /ready` | Público | — | Salud del servicio y de sus dependencias |
 | eventos | `GET /api-docs` | Público | — | Documentación |
 | entradas | `POST /ordenes` | Autenticado | `USER` (solo para sí mismo) o `ADMIN` | Compra asociada a un usuario |
@@ -93,7 +93,7 @@ Incluye los 25 endpoints que ya existen en la solución más los 2 nuevos de aut
 | eventos | `GET /eventos`, `GET /eventos/:id` | Sí | Sí | Sí |
 | eventos | `POST /eventos`, `PUT /eventos/:id` | No | No | Sí |
 | eventos | `PATCH /eventos/:id/cancelar`, `/finalizar` | No | No | Sí |
-| eventos | `POST /eventos/:id/reservar-aforo`, `/liberar-aforo` | No | Sí | Sí |
+| eventos | `POST /eventos/:id/reservar-aforo`, `/liberar-aforo` | No | No | No |
 | entradas | `POST /ordenes` | No | Sí (solo para sí mismo) | Sí |
 | entradas | `GET /ordenes/:id`, `DELETE /ordenes/:id` | No | Sí (solo las propias) | Sí |
 | entradas | `GET /entradas?usuarioId=` | No | Sí (solo el propio) | Sí |
@@ -117,16 +117,16 @@ Cada regla la aplica el servicio dueño del recurso: **Usuarios no decide quién
 
 ## 7. Endpoints internos y propagación del token (sección 13)
 
-Entradas reenvía el `Authorization: Bearer` del cliente en sus llamadas a Usuarios (`GET /usuarios/:id`) y a Eventos (`GET /eventos/:id`, `reservar-aforo` y `liberar-aforo`).
+Entradas reenvía el token del cliente en sus consultas a Usuarios (`GET /usuarios/:id`) y a Eventos (`GET /eventos/:id`). Para `reservar-aforo` y `liberar-aforo`, genera una credencial técnica de corta duración que Eventos valida con una clave separada y exclusiva de estos dos servicios.
 
 ```text
 Cliente ──Authorization: Bearer JWT──► Entradas ──Authorization: Bearer JWT──► Usuarios
                                           └──────Authorization: Bearer JWT──► Eventos
 ```
 
-**Decisión sobre `reservar-aforo` y `liberar-aforo`:** quedan protegidos y exigen un token válido de cualquier rol (`USER` o `ADMIN`). Como Entradas propaga el token del comprador, no se puede exigir `ADMIN`.
+**Autorización de `reservar-aforo` y `liberar-aforo`:** exigen un JWT HS256 con identidad `entradas-service`, emisor `entradas-service`, audiencia `eventos-service`, vencimiento de un minuto y firma con `EVENTOS_SERVICE_TOKEN_SECRET`. Un token de usuario (`USER` o `ADMIN`) no autoriza estas operaciones. El secreto se entrega únicamente a Entradas y Eventos y debe ser distinto de `JWT_SECRET`.
 
-**Limitación que dejamos anotada:** el puerto de Eventos está publicado hacia el host, por lo que un usuario autenticado podría llamar a `reservar-aforo` directamente, sin pasar por Entradas, y consumir aforo sin generar una orden. Como mejora futura: un rol o token de servicio (por ejemplo, un rol `SERVICE`) para estos dos endpoints, o dejar de publicar el puerto de Eventos y acceder solo desde la red interna.
+La protección se aplica aunque el puerto de Eventos esté publicado: una llamada directa de un usuario no posee la firma ni la identidad técnica requeridas y se rechaza antes de modificar el aforo.
 
 ## 8. Autenticación en la arquitectura de microservicios (sección 12)
 
@@ -134,7 +134,7 @@ Cliente ──Authorization: Bearer JWT──► Entradas ──Authorization: B
 |---|---|
 | ¿Qué componente emite los tokens? | Solo `usuarios-service`, en `POST /auth/login` |
 | ¿Qué servicios validan tokens? | Los tres, cada uno en sus endpoints protegidos, con su propio middleware |
-| ¿Qué información del token usa cada servicio? | **Usuarios:** `sub` (propiedad) y `role`. **Eventos:** `role` (exige `ADMIN` para gestionar). **Entradas:** `sub` (dueño de la orden) y `role` |
+| ¿Qué información del token usa cada servicio? | **Usuarios:** `sub` (propiedad) y `role`. **Eventos:** `role` (exige `ADMIN` para gestionar) y claims técnicos de Entradas para aforo. **Entradas:** `sub` (dueño de la orden) y `role` |
 | ¿Cómo se comparte la configuración para verificar la firma? | `JWT_SECRET` se define una sola vez en el `.env` raíz y `docker-compose.yml` lo entrega a los tres servicios. Cada servicio verifica la firma **localmente**, sin consultar la base de usuarios |
 | ¿Qué pasa si Usuarios no está disponible después de emitir un token? | Eventos y Entradas **siguen validando tokens** porque no dependen de Usuarios para eso. Lo que deja de funcionar es el login y el registro, y las compras (Entradas consulta a Usuarios, y responde `503` como en el TP6). La gestión de eventos sigue funcionando |
 
@@ -152,7 +152,8 @@ Para que los tres servicios y las pruebas sean consistentes:
 | El token **no** incluye | Contraseña, hash, secretos ni datos personales (ni siquiera el email) |
 | Identidad en el request | El middleware deja `req.auth = { sub, role }` |
 | Middlewares | `autenticar` (responde 401) y `requerirRol(...roles)` (responde 403) |
-| Variables de entorno | `JWT_SECRET` (los tres servicios), `JWT_EXPIRES_IN` e `JWT_ISSUER` (emisor), `BCRYPT_ROUNDS`, `SEED_ADMIN_PASSWORD`, `SEED_USER_PASSWORD` |
+| Variables de entorno | `JWT_SECRET` (los tres servicios), `EVENTOS_SERVICE_TOKEN_SECRET` (solo Entradas y Eventos, distinto de `JWT_SECRET`), `JWT_EXPIRES_IN` e `JWT_ISSUER` (emisor), `BCRYPT_ROUNDS`, `SEED_ADMIN_PASSWORD`, `SEED_USER_PASSWORD` |
+| Identidad de servicio | `EVENTOS_SERVICE_TOKEN_SECRET` solo en Entradas y Eventos; distinto de `JWT_SECRET`; token con `sub`/`service` `entradas-service`, `iss` `entradas-service`, `aud` `eventos-service` y `exp` de un minuto |
 | Cuerpo de los errores | `{ "message": "...", "code": "..." }`, igual que en el TP6. Sin stack traces |
 
 | Estado | Código | `code` |
@@ -172,8 +173,8 @@ Para que los tres servicios y las pruebas sean consistentes:
 | Servicio | Antes (TP6) | Con el TP7 | Sigue fuera de su alcance |
 |---|---|---|---|
 | `usuarios-service` | Datos personales de las personas | **Además:** credenciales (`passwordHash`, `role`), registro, login y emisión de JWT | Reglas de eventos, aforo, compras y tickets |
-| `eventos-service` | Eventos y aforo, sin noción de identidad | Valida el JWT y exige `ADMIN` para gestionar eventos | Saber quién es cada persona; consultar la base de usuarios |
-| `entradas-service` | Compra y tickets, sin noción de identidad | Valida el JWT, aplica la propiedad de órdenes y tickets y propaga el token | Credenciales y datos personales |
+| `eventos-service` | Eventos y aforo, sin noción de identidad | Valida el JWT de usuario y exige `ADMIN` para gestionar eventos; reserva/liberación exige la identidad técnica de Entradas | Saber quién es cada persona; consultar la base de usuarios |
+| `entradas-service` | Compra y tickets, sin noción de identidad | Valida el JWT, aplica la propiedad de órdenes y tickets, propaga el token en consultas y firma la identidad técnica para modificar aforo | Credenciales y datos personales |
 
 **No centralizamos reglas de negocio en el componente de autenticación.** Usuarios solo emite una identidad (`sub` y `role`); cada servicio decide qué puede hacer con ella. La regla "un usuario solo ve sus órdenes" vive en Entradas, y la regla "solo un administrador gestiona eventos" vive en Eventos.
 

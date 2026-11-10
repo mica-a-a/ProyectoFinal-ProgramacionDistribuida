@@ -38,7 +38,7 @@ test('todo endpoint protegido documenta 401 y el rol o condición exigida; los d
   for (const { metodo, ruta, op } of protegidas) {
     assert.ok(op.responses[401], `${metodo} ${ruta} no documenta 401`);
     assert.match(op.description, /Requiere/, `${metodo} ${ruta} no documenta qué se exige`);
-    if (!/cualquier rol/.test(op.description)) assert.ok(op.responses[403], `${metodo} ${ruta} no documenta 403`);
+    if (!/cualquier rol|credencial técnica/.test(op.description)) assert.ok(op.responses[403], `${metodo} ${ruta} no documenta 403`);
   }
 });
 

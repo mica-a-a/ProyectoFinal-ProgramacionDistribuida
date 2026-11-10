@@ -80,21 +80,30 @@ test('compra: Entradas reenvía a Usuarios el MISMO token que recibió del clien
   assert.equal(aUsuarios[0].authorization, `Bearer ${USER_U1}`);
 });
 
-test('compra: Entradas reenvía el token a Eventos en TODAS las llamadas (consulta y reserva de aforo)', async () => {
+test('compra: Entradas propaga el token del cliente en la consulta y usa identidad técnica al reservar aforo', async () => {
   const r = await comprar(USER_U1);
   assert.equal(r.status, 201);
   const aEventos = sinAuth(eventos.state.llamadas);
   assert.deepEqual(aEventos.map((l) => `${l.method} ${l.path}`), ['GET /eventos/e1', 'POST /eventos/e1/reservar-aforo']);
-  for (const l of aEventos) assert.equal(l.authorization, `Bearer ${USER_U1}`, `${l.method} ${l.path} sin el token del cliente`);
+  assert.equal(aEventos[0].authorization, `Bearer ${USER_U1}`);
+  const claimsServicio = decodificar(aEventos[1].authorization);
+  assert.equal(claimsServicio.sub, 'entradas-service');
+  assert.equal(claimsServicio.service, 'entradas-service');
+  assert.equal(claimsServicio.iss, 'entradas-service');
+  assert.equal(claimsServicio.aud, 'eventos-service');
+  assert.ok(claimsServicio.exp > claimsServicio.iat && claimsServicio.exp - claimsServicio.iat <= 60);
+  assert.notEqual(aEventos[1].authorization, `Bearer ${USER_U1}`);
 });
 
-test('cancelar: se propaga el token a la consulta del evento y a la liberación de aforo', async () => {
+test('cancelar: propaga el token del cliente en la consulta y usa identidad técnica al liberar aforo', async () => {
   const compra = await comprar(USER_U1);
   eventos.state.llamadas.length = 0;
   const r = await http('DELETE', `/ordenes/${compra.body.orden.id}`, undefined, USER_U1);
   assert.equal(r.status, 200);
   assert.deepEqual(sinAuth(eventos.state.llamadas).map((l) => `${l.method} ${l.path}`), ['GET /eventos/e1', 'POST /eventos/e1/liberar-aforo']);
-  for (const l of sinAuth(eventos.state.llamadas)) assert.equal(l.authorization, `Bearer ${USER_U1}`);
+  const llamadas = sinAuth(eventos.state.llamadas);
+  assert.equal(llamadas[0].authorization, `Bearer ${USER_U1}`);
+  assert.equal(decodificar(llamadas[1].authorization).service, 'entradas-service');
 });
 
 test('el contexto que llega a los servicios es el del CLIENTE (sub y role), no uno propio de Entradas', async () => {

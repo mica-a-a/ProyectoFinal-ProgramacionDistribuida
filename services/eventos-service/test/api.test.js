@@ -1,10 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { firmar, bearer } = require('./helpers/token'); // TP7: fija JWT_SECRET de prueba
+const { firmar, firmarServicio, bearer } = require('./helpers/token'); // fija secretos de prueba
 const { armar, datosEvento } = require('./helpers/armar');
 
 // TP7: la gestión de eventos exige ADMIN; por defecto se llama como ADMIN (token: null = sin token).
 const ADMIN = firmar({ role: 'ADMIN' });
+const ENTRADAS = firmarServicio();
 
 async function conServidor(opciones, fn) {
   const ctx = armar(opciones);
@@ -44,17 +45,17 @@ test('flujo completo: crear, consultar, reservar, agotar, liberar', () =>
 
     assert.equal((await http('GET', `/eventos/${id}`)).body.disponibles, 2);
 
-    const r1 = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 2, referencia: 'o1' });
+    const r1 = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 2, referencia: 'o1' }, ENTRADAS);
     assert.equal(r1.status, 200);
     assert.deepEqual(r1.body, { reservado: true, disponibles: 0, idempotente: false });
 
-    const r2 = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 1, referencia: 'o2' });
+    const r2 = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 1, referencia: 'o2' }, ENTRADAS);
     assert.equal(r2.status, 409);
     assert.equal(r2.body.code, 'SIN_AFORO');
 
     assert.equal((await http('GET', `/eventos/${id}`)).body.estado, 'AGOTADO');
 
-    const lib = await http('POST', `/eventos/${id}/liberar-aforo`, { cantidad: 2, referencia: 'o1' });
+    const lib = await http('POST', `/eventos/${id}/liberar-aforo`, { cantidad: 2, referencia: 'o1' }, ENTRADAS);
     assert.equal(lib.status, 200);
     assert.equal(lib.body.disponibles, 2);
   }));
@@ -71,7 +72,7 @@ test('códigos de error: 400, 404, 409 y ruta inexistente', () =>
 
     const id = (await http('POST', '/eventos', datosEvento())).body.id;
     await http('PATCH', `/eventos/${id}/cancelar`);
-    const r = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 1, referencia: 'o1' });
+    const r = await http('POST', `/eventos/${id}/reservar-aforo`, { cantidad: 1, referencia: 'o1' }, ENTRADAS);
     assert.equal(r.status, 409);
     assert.equal(r.body.code, 'EVENTO_NO_VENDIBLE');
   }));

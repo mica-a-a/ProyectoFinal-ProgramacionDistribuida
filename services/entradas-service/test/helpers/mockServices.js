@@ -26,6 +26,30 @@ const exigirToken = (state) => (req, res, next) => {
   return next();
 };
 
+const exigirServicioEntradas = (state) => (req, res, next) => {
+  if (state.forzar) return res.status(state.forzar.status).json({ message: 'rechazo simulado', code: state.forzar.code });
+  const header = req.headers.authorization;
+  if (!header) return res.status(401).json({ message: 'Credencial técnica ausente', code: 'TOKEN_AUSENTE' });
+  const [esquema, token, ...resto] = header.trim().split(/\s+/);
+  if (!/^bearer$/i.test(esquema) || !token || resto.length > 0) {
+    return res.status(401).json({ message: 'Credencial técnica inválida', code: 'TOKEN_SERVICIO_INVALIDO' });
+  }
+  try {
+    const claims = jwt.verify(token, process.env.EVENTOS_SERVICE_TOKEN_SECRET, {
+      algorithms: ['HS256'],
+      issuer: 'entradas-service',
+      audience: 'eventos-service',
+    });
+    if (claims.sub !== 'entradas-service' || claims.service !== 'entradas-service' || typeof claims.exp !== 'number') {
+      return res.status(401).json({ message: 'Credencial técnica inválida', code: 'TOKEN_SERVICIO_INVALIDO' });
+    }
+    req.claims = claims;
+    return next();
+  } catch {
+    return res.status(401).json({ message: 'Credencial técnica inválida', code: 'TOKEN_SERVICIO_INVALIDO' });
+  }
+};
+
 const horas = (h) => new Date(Date.now() + h * 36e5).toISOString();
 
 function seedUsuarios() {
@@ -90,7 +114,7 @@ function startEventosMock(port = 0) {
     if (!e) return res.status(404).json({ message: 'Evento no encontrado' });
     return res.json(e);
   });
-  app.post('/eventos/:id/reservar-aforo', exigirToken(state), (req, res) => {
+  app.post('/eventos/:id/reservar-aforo', exigirServicioEntradas(state), (req, res) => {
     const e = state.eventos[req.params.id];
     if (!e) return res.status(404).json({ message: 'Evento no encontrado' });
     if (state.lockOcupadoVeces > 0) { state.lockOcupadoVeces -= 1; return res.status(423).json({ message: 'Evento ocupado' }); }
@@ -104,7 +128,7 @@ function startEventosMock(port = 0) {
     state.movimientos.set(referencia, cantidad);
     return res.json({ reservado: true, disponibles: e.disponibles });
   });
-  app.post('/eventos/:id/liberar-aforo', exigirToken(state), (req, res) => {
+  app.post('/eventos/:id/liberar-aforo', exigirServicioEntradas(state), (req, res) => {
     const e = state.eventos[req.params.id];
     if (!e) return res.status(404).json({ message: 'Evento no encontrado' });
     const { cantidad, referencia } = req.body;

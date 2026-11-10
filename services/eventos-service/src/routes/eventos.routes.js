@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { autenticar, requerirRol } = require('../middlewares/auth');
+const { autenticar, autenticarEntradasService, requerirRol } = require('../middlewares/auth');
 
 function createEventosRoutes(c) {
   const router = Router();
@@ -13,10 +13,9 @@ function createEventosRoutes(c) {
   router.patch('/eventos/:id/cancelar', ...soloAdmin, c.cancelar);
   router.patch('/eventos/:id/finalizar', ...soloAdmin, c.finalizar);
 
-  // Operaciones INTERNAS: las usa entradas-service, no el cliente final.
-  // Quedan protegidas con cualquier rol: Entradas propaga el token del comprador (sección 7 del Hito 1).
-  router.post('/eventos/:id/reservar-aforo', autenticar, c.reservarAforo);
-  router.post('/eventos/:id/liberar-aforo', autenticar, c.liberarAforo);
+  // Operaciones internas: solo acepta la identidad técnica de entradas-service.
+  router.post('/eventos/:id/reservar-aforo', autenticarEntradasService, c.reservarAforo);
+  router.post('/eventos/:id/liberar-aforo', autenticarEntradasService, c.liberarAforo);
 
   return router;
 }

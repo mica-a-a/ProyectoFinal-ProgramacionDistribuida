@@ -63,7 +63,7 @@ Reglas de la arquitectura: solo Entradas llama a los otros dos (no hay dependenc
 | Validación | Cada servicio verifica la firma, el algoritmo, el emisor y el vencimiento **localmente** (sin consultar a Usuarios), con el mismo middleware |
 | Roles | `USER` y `ADMIN` (campo `role`). El registro **siempre** crea `USER`; el cliente nunca elige su rol. Un `ADMIN` se crea por seed o con `POST /usuarios` (solo ADMIN) |
 | Propiedad del recurso | Un `USER` solo ve y modifica lo suyo (perfil, órdenes y entradas); lo aplica el servicio dueño del recurso |
-| Propagación | Entradas valida el token del cliente y lo **reenvía** a Usuarios y a Eventos. Detalle en [`docs/tp7-propagacion-token.md`](docs/tp7-propagacion-token.md) |
+| Comunicación interna | Entradas propaga el JWT del cliente en consultas; para reservar/liberar aforo firma una credencial técnica de corta duración que solo acepta Eventos |
 
 ### Roles y permisos (resumen)
 
@@ -116,7 +116,7 @@ Invoke-RestMethod -Uri http://localhost:3001/usuarios/<id> -Headers @{ Authoriza
 1. Abrir el Swagger de Usuarios: http://localhost:3001/api-docs.
 2. `POST /auth/login` → **Try it out** → enviar las credenciales → copiar el valor de `token`.
 3. Botón **Authorize** (arriba a la derecha) → pegar **solo el token** (sin la palabra `Bearer`) → **Authorize**.
-4. Ahora los endpoints con el candado 🔒 se pueden probar. El mismo token sirve en los Swagger de Eventos (http://localhost:3002/api-docs) y de Entradas (http://localhost:3003/api-docs); cada endpoint indica el rol que exige y sus respuestas 401 y 403.
+4. Ahora los endpoints de usuario con el candado 🔒 se pueden probar. El mismo token sirve en los Swagger de Eventos (http://localhost:3002/api-docs) y de Entradas (http://localhost:3003/api-docs); cada endpoint indica el rol que exige y sus respuestas 401 y 403. Los POST internos de reservar/liberar aforo en Eventos no se prueban con el token de usuario: deben responder 401; el flujo autorizado se prueba comprando y cancelando desde Entradas.
 
 ### Secretos
 
@@ -143,8 +143,9 @@ docker run --rm hello-world
 git clone <URL del repositorio>
 cd ProyectoFinal-ProgramacionDistribuida
 cp .env.example .env              # Windows: copy .env.example .env
-# Completar JWT_SECRET en el .env (OBLIGATORIO, mínimo 32 caracteres). Para generar uno:
+# Completar JWT_SECRET en el .env (OBLIGATORIO, mínimo 32 caracteres). Para generar:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+# Generar también EVENTOS_SERVICE_TOKEN_SECRET con otro valor distinto y completar ambos en .env.
 docker compose up --build -d      # construye e inicia toda la solución
 docker compose ps                 # los 7 contenedores deben figurar "healthy"
 docker compose exec -T usuarios-service npm run seed   # usuarios y administrador de prueba
@@ -159,6 +160,7 @@ $secreto = node -e "console.log(require('crypto').randomBytes(48).toString('hex'
 ```
 
 Sin `JWT_SECRET`, `docker compose up` se detiene con el mensaje `required variable JWT_SECRET is missing a value`.
+También es obligatorio `EVENTOS_SERVICE_TOKEN_SECRET`, distinto de `JWT_SECRET`; Compose solo lo entrega a `entradas-service` y `eventos-service`.
 
 > **Guía paso a paso** (con y sin Docker), pruebas manuales y automáticas con los resultados esperados, y solución de problemas: [`docs/guia-instalacion-y-pruebas.md`](docs/guia-instalacion-y-pruebas.md).
 
@@ -176,9 +178,9 @@ Si ya tenés algo en 3001 a 3003, cambiá `USUARIOS_HOST_PORT`, `EVENTOS_HOST_PO
 
 ## Variables de entorno
 
-- **`.env` de la raíz:** solo lo lee Docker Compose. Plantilla en [`.env.example`](.env.example): `IMAGE_PREFIX`, `LOG_LEVEL`, `*_HOST_PORT`, `JWT_SECRET` (obligatoria, sin default, mínimo 32 caracteres), `JWT_EXPIRES_IN` (default `1h`), `BCRYPT_ROUNDS` (default `12`), `SEED_USER_PASSWORD` y `SEED_ADMIN_PASSWORD` (contraseñas **ficticias** de los usuarios del seed), `LOCK_TTL_MS`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
+- **`.env` de la raíz:** solo lo lee Docker Compose. Plantilla en [`.env.example`](.env.example): `IMAGE_PREFIX`, `LOG_LEVEL`, `*_HOST_PORT`, `JWT_SECRET` y `EVENTOS_SERVICE_TOKEN_SECRET` (obligatorias, sin default, con valores distintos y mínimo 32 caracteres), `JWT_EXPIRES_IN` (default `1h`), `BCRYPT_ROUNDS` (default `12`), `SEED_USER_PASSWORD` y `SEED_ADMIN_PASSWORD` (contraseñas **ficticias** de los usuarios del seed), `LOCK_TTL_MS`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
 - **`.env` de cada servicio** (solo para ejecución sin Docker): `services/<servicio>/.env.example`. Variables: `SERVICE_NAME`, `PORT`, `LOG_LEVEL`, `MONGODB_URI`, y según el servicio `REDIS_URL`, `LOCK_TTL_MS`, `USUARIOS_SERVICE_URL`, `EVENTOS_SERVICE_URL`, `REQUEST_TIMEOUT_MS`, `MAX_ENTRADAS_POR_USUARIO`, `PLAZO_CANCELACION_HORAS`.
-- Para ejecutar un servicio **sin Docker** con `npm start`, el `.env` de cada servicio también necesita `JWT_SECRET` (el **mismo** valor en los tres) y, en Usuarios, `JWT_EXPIRES_IN`, `JWT_ISSUER` y `BCRYPT_ROUNDS`.
+- Para ejecutar un servicio **sin Docker** con `npm start`, el `.env` de cada servicio también necesita `JWT_SECRET` (el **mismo** valor en los tres); Entradas y Eventos además necesitan compartir `EVENTOS_SERVICE_TOKEN_SECRET`. En Usuarios se requieren `JWT_EXPIRES_IN`, `JWT_ISSUER` y `BCRYPT_ROUNDS`.
 - Ningún `.env` real se sube a Git. No hay contraseñas, tokens ni claves en los Dockerfile, en el Compose ni en el código.
 
 ### Diferencias entre ejecución local y Docker Compose

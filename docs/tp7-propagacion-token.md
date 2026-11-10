@@ -4,7 +4,7 @@ Implementación del apartado 5 del checklist (sección 13 de la consigna). Compl
 
 ## 1. Estrategia
 
-**Entradas valida el token del cliente y se lo reenvía, tal cual, a Usuarios y a Eventos.**
+**Entradas valida el token del cliente y lo reenvía para las consultas; para modificar aforo, usa una credencial técnica exclusiva de servicio.**
 
 ```text
 Cliente ──Authorization: Bearer JWT──► entradas-service
@@ -17,13 +17,16 @@ Cliente ──Authorization: Bearer JWT──► entradas-service
                                                                                             POST /eventos/:id/liberar-aforo
 ```
 
+Las dos llamadas POST de aforo llevan un JWT técnico independiente, firmado por Entradas y no el token de usuario del diagrama.
+
 | Decisión | Por qué |
 |---|---|
-| Se reenvía el token **del cliente**, no uno propio de Entradas | Es lo que admite la consigna (sección 13) y evita inventar un mecanismo nuevo. El servicio remoto ve la misma identidad que originó la operación, y su propia regla de autorización (rol, propiedad) se aplica sobre ella |
+| El token del cliente solo se reenvía en consultas; aforo usa identidad técnica | Eventos debe garantizar que reservar/liberar pase por las reglas de negocio de Entradas. Un JWT de usuario por sí solo no demuestra que esa ruta de compra se haya seguido |
 | Solo viaja el encabezado `Authorization` (normalizado a `Bearer <token>`) | No se reenvían cookies ni otros encabezados del cliente. Un test lo verifica |
-| El contexto se pasa **explícito** (`ctx = { authorization }`) de controlador a servicio a cliente HTTP | Sin estado oculto: se ve en la firma de cada función qué viaja y es fácil de testear. La consigna pide evitar distribuir detalles de HTTP por los controladores: el reenvío vive en `clients/httpClient.js` |
+| El contexto del cliente se pasa **explícito** (`ctx = { authorization }`) en las consultas | Sin estado oculto; el token técnico se firma en el cliente de Eventos para las dos operaciones internas |
 | Se reenvía también en `GET /eventos/:id`, aunque es público | Una sola regla ("toda llamada de Entradas lleva la identidad"). No cuesta nada y Eventos la ignora en los endpoints públicos |
 | Lo que Entradas rechaza **nunca se propaga** | Sin token, vencido, alterado, o un USER comprando para otro: se corta con 401/403 antes de llamar a nadie |
+| La credencial técnica no depende del token del usuario | Permite compensar/liberar aforo aunque el JWT del comprador expire y bloquea invocaciones directas de usuarios |
 | Usuarios no consulta ni se consulta para validar el token | La verificación de la firma es local en cada servicio (`JWT_SECRET` compartido). El principio de la sección 12 |
 
 ## 2. Qué usa cada servicio del token
@@ -31,8 +34,8 @@ Cliente ──Authorization: Bearer JWT──► entradas-service
 | Servicio | Claims que usa | Para qué |
 |---|---|---|
 | `usuarios-service` | `sub`, `role` | Propiedad del perfil (`sub` = `:id`) y operaciones de ADMIN. Es el único que **emite** tokens |
-| `eventos-service` | `role` | Exige ADMIN para gestionar eventos; en `reservar-aforo`/`liberar-aforo` solo exige un token válido |
-| `entradas-service` | `sub`, `role` | Dueño de la orden o de las entradas; ADMIN puede con todo. Además **propaga** el token |
+| `eventos-service` | `role` en JWT de usuario; `sub`, `service`, `iss`, `aud`, `exp` en JWT técnico | Exige ADMIN para gestionar eventos; reserva/liberación exige la identidad técnica `entradas-service` |
+| `entradas-service` | `sub`, `role` | Dueño de la orden o de las entradas; ADMIN puede con todo. Propaga el token del cliente en consultas y firma tokens técnicos para mutaciones de aforo |
 
 ## 3. Qué pasa cuando el servicio remoto rechaza la identidad propagada
 
@@ -61,25 +64,24 @@ Responde la pregunta de la sección 12 de la consigna. Se probó con `scripts/tp
 
 ## 5. Observabilidad
 
-Cada log de `request` de los tres servicios incluye `sub` y `role` cuando el pedido está autenticado. Así `docker compose logs` muestra **quién** hizo cada operación en cada servicio, y es la evidencia de que la identidad viajó:
+Cada log de `request` de los tres servicios incluye `sub` y `role` cuando el pedido está autenticado. En Eventos, las mutaciones de aforo registran `entradas-service` con rol `SERVICE`, no al comprador:
 
 ```json
 {"service":"usuarios-service","message":"request","method":"GET","path":"/usuarios/<id>","status":200,"sub":"<id>","role":"USER"}
-{"service":"eventos-service","message":"request","method":"POST","path":"/eventos/<id>/reservar-aforo","status":200,"sub":"<id>","role":"USER"}
+{"service":"eventos-service","message":"request","method":"POST","path":"/eventos/<id>/reservar-aforo","status":200,"sub":"entradas-service","role":"SERVICE"}
 ```
 
 Nunca se loguea el token, solo su `sub` y `role` (sección 17). Un test unitario y la prueba `logs-seguridad` lo comprueban.
 
 ## 6. Configuración
 
-El `docker-compose.yml` entrega `JWT_SECRET` (obligatorio, sin valor por defecto) y `JWT_ISSUER` a los **tres** servicios. Si falta, `docker compose up` falla con un mensaje claro. `JWT_EXPIRES_IN` y `BCRYPT_ROUNDS` solo los necesita el emisor.
+El `docker-compose.yml` entrega `JWT_SECRET` a los tres servicios y `EVENTOS_SERVICE_TOKEN_SECRET` únicamente a Entradas y Eventos. Ambos secretos son obligatorios, distintos y no tienen valor por defecto. El JWT técnico expira en un minuto. `JWT_EXPIRES_IN` y `BCRYPT_ROUNDS` solo los necesita el emisor de usuarios.
 
 ## 7. Limitaciones asumidas
 
 | Limitación | Consecuencia | Mejora posible |
 |---|---|---|
-| El token propagado puede vencer antes de terminar una compensación (por ejemplo, `liberar-aforo` tras fallar la emisión de tickets) | La orden queda `PENDIENTE` para recuperación, igual que ante cualquier fallo incierto | Un token de servicio con rol propio (`SERVICE`) para las llamadas de compensación |
-| `reservar-aforo` y `liberar-aforo` aceptan a cualquier USER autenticado (documentado en el Hito 1) | Un usuario podría llamar a Eventos directamente, sin pasar por Entradas | Rol `SERVICE`, o no publicar el puerto de Eventos |
+| Se comparte una clave simétrica entre Entradas y Eventos | Quien obtenga `EVENTOS_SERVICE_TOKEN_SECRET` podría suplantar Entradas | Mantener el secreto separado de `JWT_SECRET` y no entregarlo a otros servicios |
 | Clave simétrica (HS256) compartida | Cualquier servicio con `JWT_SECRET` podría firmar tokens | RS256: solo Usuarios tendría la clave privada |
 | Sin revocación | Una cuenta dada de baja conserva su token hasta que vence | Vida corta (1 h) y, a futuro, lista de revocación |
 
@@ -88,27 +90,26 @@ El `docker-compose.yml` entrega `JWT_SECRET` (obligatorio, sin valor por defecto
 ### Automáticas, sin Docker
 
 ```bash
-cd services/entradas-service && npm test      # 52 tests (14 nuevos: 11 de propagación y 3 de traducción de errores)
+cd services/entradas-service && npm test      # 57 pruebas
 ```
 
 | Test | Qué demuestra |
 |---|---|
 | Reenvía a Usuarios el mismo token | Propagación en `GET /usuarios/:id` |
-| Reenvía a Eventos en todas las llamadas | Propagación en consulta y `reservar-aforo` |
-| Cancelar propaga a consulta y `liberar-aforo` | Propagación en el segundo caso de uso |
-| El contexto es el del cliente (USER y ADMIN) | No se usa una identidad propia de Entradas |
+| Reenvía a Eventos el token del cliente solo en GET; reserva lleva un JWT técnico | Verifica que las credenciales se separen por operación |
+| Cancelar propaga a consulta y usa JWT técnico al liberar | La identidad de la compensación no depende del token del comprador |
 | Solo viaja `Authorization` | No hay fuga de cookies ni otros encabezados |
 | Sin token, vencido o alterado: 401 y 0 llamadas | Lo rechazado no se propaga |
 | USER para otro usuario: 403 y 0 llamadas | Propiedad antes de propagar |
 | 401 `TOKEN_VENCIDO` remoto → 401; otro 401 → 502; 403 → 403 | Traducción de errores (sección 3) |
 | El token no aparece en ningún log | Sección 17 |
 
-Los simulados de Usuarios y Eventos de los tests **validan el token como los servicios reales**: si Entradas dejara de propagarlo, 27 de los 38 tests anteriores fallan (se comprobó quitando el reenvío a propósito).
+Los simulados de Usuarios y Eventos **validan las credenciales como los servicios reales**, incluido el JWT técnico necesario para modificar aforo.
 
 ### Con la solución completa (evidencia del escenario J)
 
 ```bash
-cp .env.example .env            # completar JWT_SECRET (instrucciones dentro del archivo)
+cp .env.example .env            # completar JWT_SECRET y EVENTOS_SERVICE_TOKEN_SECRET
 docker compose up --build -d
 docker compose exec -T usuarios-service npm run seed
 docker compose exec -T eventos-service npm run seed

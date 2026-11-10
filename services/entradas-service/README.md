@@ -28,11 +28,12 @@ npm start
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017/entradas` | Base propia del servicio (Compose: `mongodb://entradas-db:27017/entradas`) |
 | `USUARIOS_SERVICE_URL` | `http://localhost:3001` | URL base de usuarios-service (Compose: `http://usuarios-service:3000`) |
 | `EVENTOS_SERVICE_URL` | `http://localhost:3002` | URL base de eventos-service (Compose: `http://eventos-service:3000`) |
+| `EVENTOS_SERVICE_TOKEN_SECRET` | Secreto aleatorio de 48 bytes | Firma la identidad técnica usada en las escrituras de aforo; debe coincidir con Eventos y ser distinto de `JWT_SECRET` |
 | `REQUEST_TIMEOUT_MS` | `3000` | Timeout de las llamadas HTTP a otros servicios |
 | `MAX_ENTRADAS_POR_USUARIO` | `4` | Máximo de entradas por usuario por evento |
 | `PLAZO_CANCELACION_HORAS` | `24` | Horas antes del evento hasta las que se puede cancelar |
 
-Si falta `MONGODB_URI`, `USUARIOS_SERVICE_URL` o `EVENTOS_SERVICE_URL`, el servicio no arranca y lo informa en el log. El código no usa `localhost` ni IPs fijas: el mismo código corre local o en Docker Compose cambiando solo estas variables.
+Si falta `MONGODB_URI`, `USUARIOS_SERVICE_URL` o `EVENTOS_SERVICE_URL`, el servicio no arranca y lo informa en el log. Si falta `EVENTOS_SERVICE_TOKEN_SECRET`, la reserva/liberación falla con un error de configuración explícito. El código no usa `localhost` ni IPs fijas: el mismo código corre local o en Docker Compose cambiando solo estas variables.
 
 ## Endpoints
 
@@ -56,6 +57,8 @@ El contrato detallado (cuerpos, ejemplos y códigos de error) está en Swagger.
 | eventos-service | `GET /eventos/:id` | `precio` (número), `fecha` (ISO), `vigente` (booleano). `404` si no existe |
 | eventos-service | `POST /eventos/:id/reservar-aforo` | Body `{ cantidad, referencia }`. `200` si reservó (idempotente por `referencia`); `409` sin aforo o evento no vendible; `423` lock ocupado |
 | eventos-service | `POST /eventos/:id/liberar-aforo` | Body `{ cantidad, referencia }`. `200`; repetir la misma `referencia` no vuelve a sumar |
+
+Para reservar o liberar, Entradas firma una credencial técnica de corta duración con `EVENTOS_SERVICE_TOKEN_SECRET`; no reenvía el JWT del comprador a esos POST. La misma variable debe configurarse en Entradas y Eventos, y ser distinta de `JWT_SECRET`.
 
 Los errores remotos pueden traer `{ "message": "..." }`; si lo traen, Entradas lo propaga en los `409` y `404`. Los ids de usuario y de evento se tratan como texto opaco (referencias lógicas).
 

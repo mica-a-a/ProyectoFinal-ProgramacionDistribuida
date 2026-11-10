@@ -10,6 +10,7 @@ const { AppError } = require('../config/errors');
 
 const ALGORITMOS = ['HS256']; // fijo al verificar; nunca se toma del header del token
 const ROLES = ['USER', 'ADMIN'];
+const SERVICIO_ENTRADAS = 'entradas-service';
 
 // Se leen en cada request (no al cargar el módulo) para que los tests puedan fijar las variables antes.
 const secreto = () => process.env.JWT_SECRET;
@@ -58,6 +59,44 @@ function autenticar(req, res, next) {
   }
 }
 
+function autenticarEntradasService(req, res, next) {
+  try {
+    const token = extraerToken(req);
+    const clave = process.env.EVENTOS_SERVICE_TOKEN_SECRET;
+    if (!clave) throw new Error('EVENTOS_SERVICE_TOKEN_SECRET no configurado');
+    if (clave.length < 32) throw new Error('EVENTOS_SERVICE_TOKEN_SECRET debe tener al menos 32 caracteres');
+    if (clave === process.env.JWT_SECRET) {
+      throw new Error('EVENTOS_SERVICE_TOKEN_SECRET debe ser distinto de JWT_SECRET');
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(token, clave, {
+        algorithms: ALGORITMOS,
+        issuer: SERVICIO_ENTRADAS,
+        audience: 'eventos-service',
+      });
+    } catch (err) {
+      if (err && err.name === 'TokenExpiredError') throw new AppError(401, 'Credencial de servicio vencida', 'TOKEN_SERVICIO_VENCIDO');
+      if (err && (err.name === 'JsonWebTokenError' || err.name === 'NotBeforeError')) {
+        throw new AppError(401, 'Credencial de servicio inválida', 'TOKEN_SERVICIO_INVALIDO');
+      }
+      throw err;
+    }
+
+    if (!payload || typeof payload !== 'object' ||
+      typeof payload.exp !== 'number' ||
+      payload.sub !== SERVICIO_ENTRADAS ||
+      payload.service !== SERVICIO_ENTRADAS) {
+      throw new AppError(401, 'Credencial de servicio inválida', 'TOKEN_SERVICIO_INVALIDO');
+    }
+    req.auth = { sub: SERVICIO_ENTRADAS, role: 'SERVICE' };
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 // 403 si la identidad es válida pero el rol no alcanza. Usar SIEMPRE después de `autenticar`.
 const requerirRol = (...permitidos) => (req, res, next) => {
   if (!req.auth) return next(new AppError(401, 'Falta el token de autenticación', 'TOKEN_AUSENTE'));
@@ -77,4 +116,4 @@ function exigirDuenoOAdmin(req, idDelDueno) {
   }
 }
 
-module.exports = { autenticar, requerirRol, esAdmin, exigirDuenoOAdmin, verificar };
+module.exports = { autenticar, autenticarEntradasService, requerirRol, esAdmin, exigirDuenoOAdmin, verificar };
